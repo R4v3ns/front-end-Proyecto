@@ -11,6 +11,7 @@ export interface InputProps extends TextInputProps {
   showPasswordToggle?: boolean;
   lightColor?: string;
   darkColor?: string;
+  backgroundColor?: string;
 }
 
 export function Input({
@@ -21,13 +22,14 @@ export function Input({
   style,
   lightColor,
   darkColor,
+  backgroundColor: customBackgroundColor,
   ...props
 }: InputProps) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   
   const textColor = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
-  const backgroundColor = useThemeColor({}, 'background');
+  const backgroundColor = customBackgroundColor || useThemeColor({}, 'background');
   const iconColor = useThemeColor({}, 'icon');
   
   const borderColor = error
@@ -47,7 +49,7 @@ export function Input({
         <TextInput
           style={[
             styles.input,
-            { color: textColor, backgroundColor },
+            { color: textColor, backgroundColor: 'transparent' },
           ]}
           placeholderTextColor={iconColor}
           secureTextEntry={actualSecureTextEntry}
@@ -93,6 +95,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     minHeight: 48,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   input: {
     flex: 1,

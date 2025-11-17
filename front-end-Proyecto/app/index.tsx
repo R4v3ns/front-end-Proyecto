@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity, View, ImageBackground } from 'react-native';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Input } from '@/components/ui/input';
@@ -220,7 +220,7 @@ export default function AuthScreen() {
     }
 
     if (Object.keys(errors).length > 0) {
-      setForgotError(errors.email);
+      setForgotError(errors.email || '');
       return;
     }
 
@@ -304,7 +304,7 @@ export default function AuthScreen() {
         style={styles.linkButton}
       />
 
-      <ThemedView style={styles.divider}>
+      <ThemedView style={styles.divider} lightColor="transparent" darkColor="transparent">
         <ThemedText style={styles.dividerText}>¿No tienes cuenta?</ThemedText>
         <Button
           title="Regístrate"
@@ -313,7 +313,8 @@ export default function AuthScreen() {
             setScreen('register');
             setRegistrationSuccess(false); // Ocultar mensaje al cambiar de pantalla
           }}
-          style={styles.secondaryButton}
+          fullWidth
+          style={styles.button}
         />
       </ThemedView>
     </ThemedView>
@@ -446,13 +447,14 @@ export default function AuthScreen() {
         style={styles.button}
       />
 
-      <ThemedView style={styles.divider}>
+      <ThemedView style={styles.divider} lightColor="transparent" darkColor="transparent">
         <ThemedText style={styles.dividerText}>¿Ya tienes cuenta?</ThemedText>
         <Button
           title="Iniciar Sesión"
           variant="outline"
           onPress={() => setScreen('login')}
-          style={styles.secondaryButton}
+          fullWidth
+          style={styles.button}
         />
       </ThemedView>
     </ThemedView>
@@ -474,6 +476,7 @@ export default function AuthScreen() {
           </ThemedText>
           <Button
             title="Volver a Iniciar Sesión"
+            variant="outline"
             onPress={() => {
               setScreen('login');
               setForgotEmail('');
@@ -502,6 +505,7 @@ export default function AuthScreen() {
 
           <Button
             title="Enviar Instrucciones"
+            variant="outline"
             onPress={handleForgotPassword}
             loading={loading}
             fullWidth
@@ -510,13 +514,14 @@ export default function AuthScreen() {
 
           <Button
             title="Volver a Iniciar Sesión"
-            variant="text"
+            variant="outline"
             onPress={() => {
               setScreen('login');
               setForgotEmail('');
               setForgotError('');
             }}
-            style={styles.linkButton}
+            fullWidth
+            style={styles.button}
           />
         </>
       )}
@@ -524,25 +529,46 @@ export default function AuthScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    <ImageBackground
+      source={require('@/assets/images/background-image.jpg')}
+      style={styles.backgroundImage}
+      resizeMode="cover"
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <View style={styles.overlay} />
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {screen === 'login' && renderLogin()}
-        {screen === 'register' && renderRegister()}
-        {screen === 'forgot-password' && renderForgotPassword()}
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {screen === 'login' && renderLogin()}
+          {screen === 'register' && renderRegister()}
+          {screen === 'forgot-password' && renderForgotPassword()}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  backgroundContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#000000',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+  },
   container: {
     flex: 1,
   },
@@ -555,6 +581,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 16,
+    padding: 24,
+    paddingTop: 32,
   },
   title: {
     textAlign: 'center',
@@ -588,7 +618,7 @@ const styles = StyleSheet.create({
   successContainer: {
     padding: 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(52, 199, 89, 0.1)',
+    backgroundColor: 'rgba(52, 199, 89, 0.2)',
     marginBottom: 16,
   },
   successText: {
@@ -633,10 +663,10 @@ const styles = StyleSheet.create({
   successMessageContainer: {
     padding: 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(52, 199, 89, 0.1)',
+    backgroundColor: 'rgba(52, 199, 89, 0.2)',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(52, 199, 89, 0.3)',
+    borderColor: 'rgba(52, 199, 89, 0.4)',
   },
   successMessageText: {
     textAlign: 'center',
