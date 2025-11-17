@@ -1,0 +1,14 @@
+{
+  "name": "front-end-proyecto-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "cd front-end-Proyecto && npm start",
+    "dev": "cd front-end-Proyecto && npm start",
+    "android": "cd front-end-Proyecto && npm run android",
+    "ios": "cd front-end-Proyecto && npm run ios",
+    "web": "cd front-end-Proyecto && npm run web",
+    "install": "cd front-end-Proyecto && npm install"
+  }
+}
+

@@ -22,6 +22,17 @@ export default function HomeScreen() {
         <HelloWave />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Autenticación</ThemedText>
+        <ThemedText>
+          Accede a la pantalla de autenticación para iniciar sesión, registrarte o recuperar tu contraseña.
+        </ThemedText>
+        <Link href="/auth" style={styles.link}>
+          <ThemedText type="link" style={styles.linkText}>
+            Ir a Autenticación →
+          </ThemedText>
+        </Link>
+      </ThemedView>
+      <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Step 1: Try it</ThemedText>
         <ThemedText>
           Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
@@ -94,5 +105,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: 'absolute',
+  },
+  link: {
+    marginTop: 8,
+  },
+  linkText: {
+    fontSize: 16,
   },
 });
