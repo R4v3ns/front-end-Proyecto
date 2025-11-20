@@ -545,13 +545,14 @@ const styles = StyleSheet.create({
   headerMobile: {
     paddingHorizontal: 12,
     paddingVertical: 14,
-    paddingTop: 16,
+    paddingTop: 24,
     gap: 8,
-    minHeight: 60,
+    minHeight: 70,
   },
   headerRightMobile: {
     gap: 6,
     alignItems: 'center',
+    marginTop: 4,
   },
   searchContainerMobile: {
     flexDirection: 'row',

@@ -186,7 +186,7 @@ export default function AuthScreen() {
       Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
-      console.log('🏁 Login process finished');
+      console.log('🏁 Login process finished, loading set to false');
     }
   };
 
@@ -337,8 +337,20 @@ export default function AuthScreen() {
         ]}
         onPress={() => {
           console.log('🔘 Button pressed - Iniciar Sesión');
+          console.log('🔘 Email:', loginEmail.trim() ? 'Present' : 'Empty');
+          console.log('🔘 Password:', loginPassword ? 'Present' : 'Empty');
+          console.log('🔘 Loading:', loading);
           if (!loading && loginEmail.trim() && loginPassword) {
+            console.log('✅ Conditions met, calling handleLogin...');
             handleLogin();
+          } else {
+            console.log('❌ Conditions not met - cannot proceed');
+            if (!loginEmail.trim()) {
+              setLoginErrors({ email: 'El email es requerido' });
+            }
+            if (!loginPassword) {
+              setLoginErrors(prev => ({ ...prev, password: 'La contraseña es requerida' }));
+            }
           }
         }}
         disabled={loading || !loginEmail.trim() || !loginPassword}
@@ -570,8 +582,12 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 360,
     alignSelf: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 24,
+    padding: 24,
+    paddingVertical: 28,
   },
   title: {
     textAlign: 'center',

@@ -21,6 +21,38 @@ export class ApiError extends Error {
   }
 }
 
+// Función auxiliar para crear un AbortSignal con timeout compatible con React Native
+const createTimeoutSignal = (timeoutMs: number): AbortSignal | undefined => {
+  // Verificar si AbortController está disponible
+  if (typeof AbortController === 'undefined') {
+    console.warn('⚠️ AbortController no está disponible, continuando sin timeout signal');
+    return undefined;
+  }
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+    
+    // Limpiar el timeout si el signal es abortado manualmente
+    // Usar try-catch para manejar casos donde addEventListener no esté disponible
+    try {
+      controller.signal.addEventListener('abort', () => {
+        clearTimeout(timeoutId);
+      });
+    } catch (e) {
+      // Si addEventListener no funciona, simplemente continuar sin limpieza automática
+      console.warn('⚠️ No se pudo agregar listener al signal, continuando sin limpieza automática');
+    }
+    
+    return controller.signal;
+  } catch (error) {
+    console.warn('⚠️ Error al crear timeout signal:', error);
+    return undefined;
+  }
+};
+
 // Función auxiliar para construir la URL completa
 const buildUrl = (endpoint: string): string => {
   // Si el endpoint ya es una URL completa, usarla directamente
@@ -67,9 +99,8 @@ export class ApiClient {
       params?: Record<string, any>;
     }
   ): Promise<ApiResponse<T>> {
+    let url = buildUrl(endpoint);
     try {
-      let url = buildUrl(endpoint);
-      
       // Agregar query parameters si existen
       if (options?.params) {
         const params = new URLSearchParams();
@@ -83,10 +114,11 @@ export class ApiClient {
 
       console.log('🌐 ApiClient.get - URL:', url);
 
+      const timeoutSignal = createTimeoutSignal(API_CONFIG.timeout);
       const response = await fetch(url, {
         method: 'GET',
         headers: getHeaders(options?.headers),
-        signal: AbortSignal.timeout(API_CONFIG.timeout),
+        ...(timeoutSignal && { signal: timeoutSignal }),
       });
 
       console.log('🌐 ApiClient.get - Response status:', response.status);
@@ -124,6 +156,20 @@ export class ApiClient {
       if (error instanceof ApiError) {
         throw error;
       }
+      // Manejar errores de red específicos
+      if (error instanceof TypeError) {
+        if (error.message.includes('fetch') || error.message.includes('Network request failed')) {
+          const errorMessage = `Error de conexión con el servidor.\n\n` +
+            `URL intentada: ${url}\n\n` +
+            `Posibles causas:\n` +
+            `1. El servidor backend no está corriendo\n` +
+            `2. La IP o puerto no es correcto\n` +
+            `3. El teléfono y la computadora no están en la misma red\n` +
+            `4. Un firewall está bloqueando la conexión\n\n` +
+            `Verifica la configuración en config/api.ts o app.json`;
+          throw new ApiError(errorMessage, 0);
+        }
+      }
       throw new ApiError(
         error instanceof Error ? error.message : 'Error de conexión',
         0
@@ -141,16 +187,17 @@ export class ApiClient {
       headers?: Record<string, string>;
     }
   ): Promise<ApiResponse<T>> {
+    const url = buildUrl(endpoint);
     try {
-      const url = buildUrl(endpoint);
       console.log('🌐 ApiClient.post - URL:', url);
       console.log('🌐 ApiClient.post - Body:', body ? { ...body, password: body.password ? '***' : undefined } : 'No body');
 
+      const timeoutSignal = createTimeoutSignal(API_CONFIG.timeout);
       const response = await fetch(url, {
         method: 'POST',
         headers: getHeaders(options?.headers),
         body: body ? JSON.stringify(body) : undefined,
-        signal: AbortSignal.timeout(API_CONFIG.timeout),
+        ...(timeoutSignal && { signal: timeoutSignal }),
       });
 
       console.log('🌐 ApiClient.post - Response status:', response.status);
@@ -190,11 +237,19 @@ export class ApiClient {
       if (error instanceof ApiError) {
         throw error;
       }
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new ApiError(
-          'Error de conexión. Verifica que el servidor esté corriendo y la URL sea correcta.',
-          0
-        );
+      // Manejar errores de red específicos
+      if (error instanceof TypeError) {
+        if (error.message.includes('fetch') || error.message.includes('Network request failed')) {
+          const errorMessage = `Error de conexión con el servidor.\n\n` +
+            `URL intentada: ${url}\n\n` +
+            `Posibles causas:\n` +
+            `1. El servidor backend no está corriendo\n` +
+            `2. La IP o puerto no es correcto\n` +
+            `3. El teléfono y la computadora no están en la misma red\n` +
+            `4. Un firewall está bloqueando la conexión\n\n` +
+            `Verifica la configuración en config/api.ts o app.json`;
+          throw new ApiError(errorMessage, 0);
+        }
       }
       throw new ApiError(
         error instanceof Error ? error.message : 'Error de conexión',
@@ -213,17 +268,17 @@ export class ApiClient {
       headers?: Record<string, string>;
     }
   ): Promise<ApiResponse<T>> {
+    const url = buildUrl(endpoint);
     try {
-      const url = buildUrl(endpoint);
-
       console.log('🌐 ApiClient.put - URL:', url);
       console.log('🌐 ApiClient.put - Body:', body);
 
+      const timeoutSignal = createTimeoutSignal(API_CONFIG.timeout);
       const response = await fetch(url, {
         method: 'PUT',
         headers: getHeaders(options?.headers),
         body: body ? JSON.stringify(body) : undefined,
-        signal: AbortSignal.timeout(API_CONFIG.timeout),
+        ...(timeoutSignal && { signal: timeoutSignal }),
       });
 
       console.log('🌐 ApiClient.put - Response status:', response.status);
@@ -259,6 +314,20 @@ export class ApiClient {
       if (error instanceof ApiError) {
         throw error;
       }
+      // Manejar errores de red específicos
+      if (error instanceof TypeError) {
+        if (error.message.includes('fetch') || error.message.includes('Network request failed')) {
+          const errorMessage = `Error de conexión con el servidor.\n\n` +
+            `URL intentada: ${url}\n\n` +
+            `Posibles causas:\n` +
+            `1. El servidor backend no está corriendo\n` +
+            `2. La IP o puerto no es correcto\n` +
+            `3. El teléfono y la computadora no están en la misma red\n` +
+            `4. Un firewall está bloqueando la conexión\n\n` +
+            `Verifica la configuración en config/api.ts o app.json`;
+          throw new ApiError(errorMessage, 0);
+        }
+      }
       throw new ApiError(
         error instanceof Error ? error.message : 'Error de conexión',
         0
@@ -276,14 +345,14 @@ export class ApiClient {
       headers?: Record<string, string>;
     }
   ): Promise<ApiResponse<T>> {
+    const url = buildUrl(endpoint);
     try {
-      const url = buildUrl(endpoint);
-
+      const timeoutSignal = createTimeoutSignal(API_CONFIG.timeout);
       const response = await fetch(url, {
         method: 'PATCH',
         headers: getHeaders(options?.headers),
         body: body ? JSON.stringify(body) : undefined,
-        signal: AbortSignal.timeout(API_CONFIG.timeout),
+        ...(timeoutSignal && { signal: timeoutSignal }),
       });
 
       const data = await response.json();
@@ -300,6 +369,20 @@ export class ApiClient {
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
+      }
+      // Manejar errores de red específicos
+      if (error instanceof TypeError) {
+        if (error.message.includes('fetch') || error.message.includes('Network request failed')) {
+          const errorMessage = `Error de conexión con el servidor.\n\n` +
+            `URL intentada: ${url}\n\n` +
+            `Posibles causas:\n` +
+            `1. El servidor backend no está corriendo\n` +
+            `2. La IP o puerto no es correcto\n` +
+            `3. El teléfono y la computadora no están en la misma red\n` +
+            `4. Un firewall está bloqueando la conexión\n\n` +
+            `Verifica la configuración en config/api.ts o app.json`;
+          throw new ApiError(errorMessage, 0);
+        }
       }
       throw new ApiError(
         error instanceof Error ? error.message : 'Error de conexión',
@@ -318,14 +401,14 @@ export class ApiClient {
       body?: any;
     }
   ): Promise<ApiResponse<T>> {
+    const url = buildUrl(endpoint);
     try {
-      const url = buildUrl(endpoint);
-
+      const timeoutSignal = createTimeoutSignal(API_CONFIG.timeout);
       const response = await fetch(url, {
         method: 'DELETE',
         headers: getHeaders(options?.headers),
         body: options?.body ? JSON.stringify(options.body) : undefined,
-        signal: AbortSignal.timeout(API_CONFIG.timeout),
+        ...(timeoutSignal && { signal: timeoutSignal }),
       });
 
       const data = await response.json();
@@ -342,6 +425,20 @@ export class ApiClient {
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
+      }
+      // Manejar errores de red específicos
+      if (error instanceof TypeError) {
+        if (error.message.includes('fetch') || error.message.includes('Network request failed')) {
+          const errorMessage = `Error de conexión con el servidor.\n\n` +
+            `URL intentada: ${url}\n\n` +
+            `Posibles causas:\n` +
+            `1. El servidor backend no está corriendo\n` +
+            `2. La IP o puerto no es correcto\n` +
+            `3. El teléfono y la computadora no están en la misma red\n` +
+            `4. Un firewall está bloqueando la conexión\n\n` +
+            `Verifica la configuración en config/api.ts o app.json`;
+          throw new ApiError(errorMessage, 0);
+        }
       }
       throw new ApiError(
         error instanceof Error ? error.message : 'Error de conexión',

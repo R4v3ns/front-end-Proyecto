@@ -13,8 +13,17 @@ const getApiBaseUrl = (): string => {
   
   // Prioridad 2: Configuración en app.json
   if (Constants.expoConfig?.extra?.apiUrl) {
-    const apiUrl = Constants.expoConfig.extra.apiUrl;
+    let apiUrl = Constants.expoConfig.extra.apiUrl;
     console.log('🔧 Using app.json apiUrl:', apiUrl);
+    
+    // Si estamos en móvil y la URL es localhost, reemplazar con IP local
+    if (Platform.OS !== 'web' && apiUrl.includes('localhost')) {
+      console.warn('⚠️ Mobile platform detected with localhost. Replacing with local IP...');
+      // Reemplazar localhost con la IP local por defecto
+      apiUrl = apiUrl.replace('localhost', '192.168.0.21');
+      console.warn('⚠️ Updated URL for mobile:', apiUrl);
+      console.warn('💡 Tip: If this IP is incorrect, update it in config/api.ts or app.json');
+    }
     
     // Si estamos en web y la URL es localhost, verificar que el backend esté accesible
     if (Platform.OS === 'web' && apiUrl.includes('localhost')) {
