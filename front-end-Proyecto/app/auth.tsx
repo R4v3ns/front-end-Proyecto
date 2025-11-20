@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AuthService, LoginCredentials, RegisterData, ForgotPasswordData } from '@/services/auth';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 
 type AuthScreen = 'login' | 'register' | 'forgot-password';
 
@@ -56,7 +57,9 @@ export default function AuthScreen() {
   // Cuando cambian los parámetros de la URL, limpiar el estado interno
   useEffect(() => {
     const param = getScreenParam();
+    console.log('🔄 URL params changed, param:', param, 'Full params:', params);
     if (param === 'register' || param === 'forgot-password' || param === 'login') {
+      console.log('🧹 Clearing internal screen state because URL param exists');
       setInternalScreen(null); // Limpiar estado interno cuando hay un parámetro de URL
     }
   }, [params.screen]);
@@ -353,7 +356,7 @@ export default function AuthScreen() {
         variant="text"
         onPress={() => {
           console.log('🔘 Button pressed - Forgot password');
-          router.push('/auth?screen=forgot-password');
+          setInternalScreen('forgot-password');
         }}
         style={styles.linkButton}
       />
@@ -365,7 +368,7 @@ export default function AuthScreen() {
           variant="outline"
           onPress={() => {
             console.log('🔘 Button pressed - Register');
-            router.push('/auth?screen=register');
+            setInternalScreen('register');
           }}
           style={styles.secondaryButton}
         />
@@ -445,7 +448,7 @@ export default function AuthScreen() {
         onPress={handleRegister}
         loading={loading}
         fullWidth
-        style={styles.button}
+        style={[styles.button, styles.registerButton]}
       />
 
       <ThemedView style={styles.divider}>
@@ -455,7 +458,7 @@ export default function AuthScreen() {
           variant="outline"
           onPress={() => {
             console.log('🔘 Button pressed - Login from register');
-            router.push('/auth?screen=login');
+            setInternalScreen('login');
           }}
           style={styles.secondaryButton}
         />
@@ -484,7 +487,7 @@ export default function AuthScreen() {
               setForgotEmail('');
               setForgotSuccess(false);
               setForgotError('');
-              router.push('/auth?screen=login');
+              setInternalScreen('login');
             }}
             fullWidth
             style={styles.button}
@@ -521,7 +524,7 @@ export default function AuthScreen() {
               console.log('🔘 Button pressed - Login from forgot password');
               setForgotEmail('');
               setForgotError('');
-              router.push('/auth?screen=login');
+              setInternalScreen('login');
             }}
             style={styles.linkButton}
           />
@@ -541,6 +544,13 @@ export default function AuthScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.replace('/home')}
+        >
+          <Ionicons name="arrow-back" size={24} color="#F22976" />
+          <ThemedText style={styles.backButtonText}>Volver al menú principal</ThemedText>
+        </TouchableOpacity>
         {displayScreen === 'login' && renderLogin()}
         {displayScreen === 'register' && renderRegister()}
         {displayScreen === 'forgot-password' && renderForgotPassword()}
@@ -602,7 +612,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loginButton: {
-    backgroundColor: '#1DB954',
+    backgroundColor: '#F22976',
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -611,6 +621,8 @@ const styles = StyleSheet.create({
     minHeight: 48,
     marginTop: 8,
     width: '100%',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   loginButtonDisabled: {
     opacity: 0.5,
@@ -618,6 +630,25 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  registerButton: {
+    backgroundColor: '#F22976',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#F22976',
     fontWeight: '600',
   },
 });

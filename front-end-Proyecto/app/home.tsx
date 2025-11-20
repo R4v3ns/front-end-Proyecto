@@ -343,8 +343,10 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   registerButton: {
+    backgroundColor: '#F22976',
     paddingHorizontal: 16,
     paddingVertical: 8,
+    borderRadius: 20,
   },
   registerButtonText: {
     fontSize: 14,
@@ -542,11 +544,14 @@ const styles = StyleSheet.create({
   // Estilos móviles
   headerMobile: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 14,
+    paddingTop: 16,
     gap: 8,
+    minHeight: 60,
   },
   headerRightMobile: {
-    gap: 8,
+    gap: 6,
+    alignItems: 'center',
   },
   searchContainerMobile: {
     flexDirection: 'row',
@@ -559,22 +564,30 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   registerButtonMobile: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    backgroundColor: '#F22976',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    minHeight: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   registerButtonTextMobile: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: '#FFFFFF',
   },
   loginButtonMobile: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    minHeight: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loginButtonTextMobile: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#000000',
   },
