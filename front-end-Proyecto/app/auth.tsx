@@ -1,16 +1,65 @@
-import { useState } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { useState, useEffect, useMemo } from 'react';
+import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthService, LoginCredentials, RegisterData, ForgotPasswordData } from '@/services/auth';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
 
 type AuthScreen = 'login' | 'register' | 'forgot-password';
 
 export default function AuthScreen() {
-  const [screen, setScreen] = useState<AuthScreen>('login');
+  const params = useLocalSearchParams<{ screen?: string | string[] }>();
+  const { login } = useAuth();
+  
+  // Función helper para obtener el valor del parámetro screen
+  const getScreenParam = (): string | undefined => {
+    const screenParam = params.screen;
+    if (Array.isArray(screenParam)) {
+      return screenParam[0];
+    }
+    return screenParam;
+  };
+  
+  // Estado para manejar cambios internos (cuando el usuario hace clic en botones dentro del formulario)
+  const [internalScreen, setInternalScreen] = useState<AuthScreen | null>(null);
+  
+  // Calcular qué pantalla mostrar: priorizar parámetros de URL sobre estado interno
+  const displayScreen = useMemo((): AuthScreen => {
+    const screenParam = getScreenParam();
+    console.log('🔍 Calculating display screen - screen param:', screenParam, 'Internal:', internalScreen, 'Full params:', params);
+    
+    // Si hay un parámetro en la URL, usarlo
+    if (screenParam === 'register') {
+      return 'register';
+    }
+    if (screenParam === 'forgot-password') {
+      return 'forgot-password';
+    }
+    if (screenParam === 'login') {
+      return 'login';
+    }
+    
+    // Si no hay parámetro pero hay estado interno, usarlo
+    if (internalScreen) {
+      return internalScreen;
+    }
+    
+    // Por defecto, mostrar login
+    return 'login';
+  }, [params.screen, internalScreen]);
+  
+  console.log('📺 Final display screen:', displayScreen);
+
+  // Cuando cambian los parámetros de la URL, limpiar el estado interno
+  useEffect(() => {
+    const param = getScreenParam();
+    if (param === 'register' || param === 'forgot-password' || param === 'login') {
+      setInternalScreen(null); // Limpiar estado interno cuando hay un parámetro de URL
+    }
+  }, [params.screen]);
   const [loading, setLoading] = useState(false);
 
   // Estados para Login
@@ -47,6 +96,7 @@ export default function AuthScreen() {
 
   // Handlers
   const handleLogin = async () => {
+    console.log('🔵 handleLogin called');
     const errors: { email?: string; password?: string } = {};
 
     if (!loginEmail.trim()) {
@@ -60,12 +110,14 @@ export default function AuthScreen() {
     }
 
     if (Object.keys(errors).length > 0) {
+      console.log('❌ Validation errors:', errors);
       setLoginErrors(errors);
       return;
     }
 
     setLoginErrors({});
     setLoading(true);
+    console.log('🔄 Starting login process...');
 
     try {
       const credentials: LoginCredentials = {
@@ -73,19 +125,65 @@ export default function AuthScreen() {
         password: loginPassword,
       };
 
+      console.log('📤 Calling AuthService.login...');
       const response = await AuthService.login(credentials);
+      console.log('✅ Login response (full):', JSON.stringify(response, null, 2));
       
-      if (response.token) {
-        // Aquí puedes guardar el token usando SecureStore o AsyncStorage
-        // await SecureStore.setItemAsync('auth_token', response.token);
-        Alert.alert('Éxito', 'Sesión iniciada correctamente', [
-          { text: 'OK', onPress: () => router.replace('/(tabs)') },
-        ]);
+      // Intentar obtener el token de diferentes posibles campos
+      const authToken = response.token || 
+                       (response as any).accessToken || 
+                       (response as any).authToken ||
+                       (response as any).data?.token ||
+                       (response as any).data?.accessToken;
+      
+      // Intentar obtener el usuario de diferentes posibles campos
+      const userData = response.user || 
+                      (response as any).data?.user ||
+                      (response as any).userData ||
+                      (response as any).data;
+      
+      console.log('🔍 Extracted token:', authToken ? 'Found' : 'Not found');
+      console.log('🔍 Extracted user:', userData ? 'Found' : 'Not found');
+      
+      if (authToken) {
+        if (userData && typeof userData === 'object' && (userData.id || userData.email)) {
+          // Tenemos token y datos de usuario completos
+          console.log('✅ Token and user received, saving to context...');
+          const finalUser = {
+            id: userData.id || loginEmail.trim(),
+            email: userData.email || loginEmail.trim(),
+            firstName: userData.firstName || userData.name || undefined,
+            lastName: userData.lastName || undefined,
+            name: userData.name || userData.firstName || loginEmail.trim().split('@')[0],
+          };
+          await login(finalUser, authToken);
+          console.log('✅ User saved, redirecting to profile...');
+          router.replace('/profile');
+        } else {
+          // Solo tenemos token, crear usuario básico
+          console.log('✅ Only token received, creating basic user...');
+          const basicUser = {
+            id: loginEmail.trim(),
+            email: loginEmail.trim(),
+            name: loginEmail.trim().split('@')[0],
+          };
+          await login(basicUser, authToken);
+          console.log('✅ User created and saved, redirecting to profile...');
+          router.replace('/profile');
+        }
+      } else {
+        console.log('⚠️ No token found in response');
+        console.log('⚠️ Response structure:', Object.keys(response));
+        Alert.alert('Error', 'No se recibió un token de autenticación. Por favor, verifica tus credenciales.');
       }
     } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Error al iniciar sesión');
+      console.error('❌ Login error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error al iniciar sesión';
+      console.error('❌ Error details:', error);
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
+      console.log('🏁 Login process finished');
     }
   };
 
@@ -129,9 +227,12 @@ export default function AuthScreen() {
 
     try {
       const userData: RegisterData = {
-        name: registerName.trim(),
+        firstName: registerName.trim(),
         email: registerEmail.trim(),
         password: registerPassword,
+        passwordConfirmation: registerConfirmPassword,
+        termsAccepted: true,
+        privacyAccepted: true,
       };
 
       const response = await AuthService.register(userData);
@@ -140,11 +241,12 @@ export default function AuthScreen() {
         {
           text: 'OK',
           onPress: () => {
-            setScreen('login');
+            console.log('🔘 Registration successful, redirecting to login');
             setRegisterName('');
             setRegisterEmail('');
             setRegisterPassword('');
             setRegisterConfirmPassword('');
+            router.push('/auth?screen=login');
           },
         },
       ]);
@@ -165,7 +267,7 @@ export default function AuthScreen() {
     }
 
     if (Object.keys(errors).length > 0) {
-      setForgotError(errors.email);
+      setForgotError(errors.email || '');
       return;
     }
 
@@ -225,18 +327,34 @@ export default function AuthScreen() {
         error={loginErrors.password}
       />
 
-      <Button
-        title="Iniciar Sesión"
-        onPress={handleLogin}
-        loading={loading}
-        fullWidth
-        style={styles.button}
-      />
+      <TouchableOpacity
+        style={[
+          styles.loginButton,
+          (loading || !loginEmail.trim() || !loginPassword) && styles.loginButtonDisabled
+        ]}
+        onPress={() => {
+          console.log('🔘 Button pressed - Iniciar Sesión');
+          if (!loading && loginEmail.trim() && loginPassword) {
+            handleLogin();
+          }
+        }}
+        disabled={loading || !loginEmail.trim() || !loginPassword}
+        activeOpacity={0.7}
+      >
+        {loading ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <ThemedText style={styles.loginButtonText}>Iniciar Sesión</ThemedText>
+        )}
+      </TouchableOpacity>
 
       <Button
         title="¿Olvidaste tu contraseña?"
         variant="text"
-        onPress={() => setScreen('forgot-password')}
+        onPress={() => {
+          console.log('🔘 Button pressed - Forgot password');
+          router.push('/auth?screen=forgot-password');
+        }}
         style={styles.linkButton}
       />
 
@@ -245,7 +363,10 @@ export default function AuthScreen() {
         <Button
           title="Regístrate"
           variant="outline"
-          onPress={() => setScreen('register')}
+          onPress={() => {
+            console.log('🔘 Button pressed - Register');
+            router.push('/auth?screen=register');
+          }}
           style={styles.secondaryButton}
         />
       </ThemedView>
@@ -332,7 +453,10 @@ export default function AuthScreen() {
         <Button
           title="Iniciar Sesión"
           variant="outline"
-          onPress={() => setScreen('login')}
+          onPress={() => {
+            console.log('🔘 Button pressed - Login from register');
+            router.push('/auth?screen=login');
+          }}
           style={styles.secondaryButton}
         />
       </ThemedView>
@@ -356,10 +480,11 @@ export default function AuthScreen() {
           <Button
             title="Volver a Iniciar Sesión"
             onPress={() => {
-              setScreen('login');
+              console.log('🔘 Button pressed - Login from forgot password (success)');
               setForgotEmail('');
               setForgotSuccess(false);
               setForgotError('');
+              router.push('/auth?screen=login');
             }}
             fullWidth
             style={styles.button}
@@ -393,9 +518,10 @@ export default function AuthScreen() {
             title="Volver a Iniciar Sesión"
             variant="text"
             onPress={() => {
-              setScreen('login');
+              console.log('🔘 Button pressed - Login from forgot password');
               setForgotEmail('');
               setForgotError('');
+              router.push('/auth?screen=login');
             }}
             style={styles.linkButton}
           />
@@ -415,9 +541,9 @@ export default function AuthScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {screen === 'login' && renderLogin()}
-        {screen === 'register' && renderRegister()}
-        {screen === 'forgot-password' && renderForgotPassword()}
+        {displayScreen === 'login' && renderLogin()}
+        {displayScreen === 'register' && renderRegister()}
+        {displayScreen === 'forgot-password' && renderForgotPassword()}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -474,7 +600,25 @@ const styles = StyleSheet.create({
   },
   successText: {
     textAlign: 'center',
-    marginBottom: 16,
+  },
+  loginButton: {
+    backgroundColor: '#1DB954',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    marginTop: 8,
+    width: '100%',
+  },
+  loginButtonDisabled: {
+    opacity: 0.5,
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

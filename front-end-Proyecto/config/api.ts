@@ -1,12 +1,54 @@
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // URL base del backend - se puede configurar con variables de entorno
 // Para desarrollo local: http://localhost:8080 o http://192.168.x.x:8080
 // Para producción: https://tu-api.com
-export const API_BASE_URL =
-  Constants.expoConfig?.extra?.apiUrl ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  'http://localhost:8080';
+const getApiBaseUrl = (): string => {
+  // Prioridad 1: Variable de entorno
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    console.log('🔧 Using EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL);
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  
+  // Prioridad 2: Configuración en app.json
+  if (Constants.expoConfig?.extra?.apiUrl) {
+    const apiUrl = Constants.expoConfig.extra.apiUrl;
+    console.log('🔧 Using app.json apiUrl:', apiUrl);
+    
+    // Si estamos en web y la URL es localhost, verificar que el backend esté accesible
+    if (Platform.OS === 'web' && apiUrl.includes('localhost')) {
+      console.warn('⚠️ Web platform detected with localhost. Make sure your backend is running and CORS is configured correctly.');
+      console.warn('💡 Tip: If you get connection errors, try using your machine IP address instead of localhost.');
+    }
+    
+    return apiUrl;
+  }
+  
+  // Prioridad 3: Valor por defecto
+  // Para dispositivos móviles/Expo, usar IP local en lugar de localhost
+  // Para web, usar localhost
+  const defaultUrl = Platform.OS === 'web' 
+    ? 'http://localhost:8080'
+    : 'http://192.168.0.21:8080'; // IP local de tu máquina - actualiza según tu red
+  
+  console.log('🔧 Using default API URL:', defaultUrl);
+  console.log(`🔧 Platform: ${Platform.OS}`);
+  
+  if (Platform.OS === 'web') {
+    console.warn('⚠️ Web platform detected. Make sure your backend is running on http://localhost:8080');
+  } else {
+    console.warn('⚠️ Mobile platform detected. Make sure your backend is accessible at http://192.168.0.21:8080');
+    console.warn('💡 Tip: If connection fails, check that both devices are on the same network and update the IP in config/api.ts');
+  }
+  
+  return defaultUrl;
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+
+// Log la URL final que se está usando
+console.log('🌐 API Base URL configured:', API_BASE_URL);
 
 // Configuración de la API
 export const API_CONFIG = {
@@ -30,6 +72,10 @@ export const ENDPOINTS = {
     LOGOUT: '/api/users/logout',
   },
   // Agrega más endpoints aquí según necesites
-  USERS: '/api/users',
+  USERS: {
+    BASE: '/api/users',
+    PROFILE: '/api/users/profile',
+    UPDATE_PROFILE: '/api/users/profile',
+  },
 } as const;
 

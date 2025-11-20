@@ -47,6 +47,9 @@ export class AuthService {
    */
   static async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
+      console.log('🔵 AuthService.login - Sending request to:', ENDPOINTS.AUTH.LOGIN);
+      console.log('🔵 AuthService.login - Credentials:', { email: credentials.email, password: '***' });
+      
       const response = await ApiClient.post<AuthResponse>(
         ENDPOINTS.AUTH.LOGIN,
         {
@@ -54,14 +57,41 @@ export class AuthService {
           password: credentials.password,
         }
       );
-      return response.data || {};
+      
+      console.log('🔵 AuthService.login - Raw response:', JSON.stringify(response, null, 2));
+      console.log('🔵 AuthService.login - Response data:', response.data);
+      
+      // La respuesta puede venir directamente en response.data o anidada
+      const responseData = response.data || response;
+      
+      // Si responseData es un string, intentar parsearlo
+      if (typeof responseData === 'string') {
+        try {
+          return JSON.parse(responseData);
+        } catch {
+          return { token: responseData } as AuthResponse;
+        }
+      }
+      
+      return responseData as AuthResponse;
     } catch (error) {
+      console.error('🔴 AuthService.login - Error caught:', error);
       if (error instanceof ApiError) {
+        console.error('🔴 AuthService.login - ApiError details:', {
+          message: error.message,
+          status: error.status,
+          data: error.data,
+        });
         // El backend retorna { error: "Invalid credentials" } para credenciales incorrectas
-        const errorMessage = error.data?.error || error.message || 'Error al iniciar sesión';
+        const errorMessage = error.data?.error || 
+                            error.data?.message || 
+                            error.message || 
+                            'Error al iniciar sesión';
         throw new Error(errorMessage);
       }
-      throw new Error('Error de conexión. Verifica tu conexión a internet.');
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      console.error('🔴 AuthService.login - Unknown error:', errorMessage);
+      throw new Error(`Error de conexión: ${errorMessage}. Verifica tu conexión a internet.`);
     }
   }
 

@@ -25,12 +25,17 @@ export class ApiError extends Error {
 const buildUrl = (endpoint: string): string => {
   // Si el endpoint ya es una URL completa, usarla directamente
   if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    console.log('🔗 buildUrl - Using full URL:', endpoint);
     return endpoint;
   }
   // Si no, construir la URL con la base
   const baseUrl = API_CONFIG.baseURL.replace(/\/$/, ''); // Remover trailing slash
   const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${baseUrl}${path}`;
+  const fullUrl = `${baseUrl}${path}`;
+  console.log('🔗 buildUrl - Base URL:', baseUrl);
+  console.log('🔗 buildUrl - Endpoint:', endpoint);
+  console.log('🔗 buildUrl - Full URL:', fullUrl);
+  return fullUrl;
 };
 
 // Función auxiliar para obtener los headers con token de autenticación si existe
@@ -76,22 +81,44 @@ export class ApiClient {
         url += `?${params.toString()}`;
       }
 
+      console.log('🌐 ApiClient.get - URL:', url);
+
       const response = await fetch(url, {
         method: 'GET',
         headers: getHeaders(options?.headers),
         signal: AbortSignal.timeout(API_CONFIG.timeout),
       });
 
-      const data = await response.json();
+      console.log('🌐 ApiClient.get - Response status:', response.status);
+
+      // Intentar parsear como JSON, pero manejar errores si no es JSON
+      let data;
+      const contentType = response.headers.get('content-type');
+      const text = await response.text();
+      console.log('🌐 ApiClient.get - Response text:', text);
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch (parseError) {
+          console.error('🌐 ApiClient.get - JSON parse error:', parseError);
+          data = { message: text || 'Error al procesar la respuesta' };
+        }
+      } else {
+        console.log('🌐 ApiClient.get - Non-JSON response');
+        data = { message: text || 'Respuesta no válida' };
+      }
 
       if (!response.ok) {
+        console.error('🌐 ApiClient.get - Error response:', data);
         throw new ApiError(
-          data.message || 'Error en la petición',
+          data.error || data.message || 'Error en la petición',
           response.status,
           data
         );
       }
 
+      console.log('🌐 ApiClient.get - Success response:', data);
       return { data, status: response.status };
     } catch (error) {
       if (error instanceof ApiError) {
@@ -116,6 +143,8 @@ export class ApiClient {
   ): Promise<ApiResponse<T>> {
     try {
       const url = buildUrl(endpoint);
+      console.log('🌐 ApiClient.post - URL:', url);
+      console.log('🌐 ApiClient.post - Body:', body ? { ...body, password: body.password ? '***' : undefined } : 'No body');
 
       const response = await fetch(url, {
         method: 'POST',
@@ -124,20 +153,48 @@ export class ApiClient {
         signal: AbortSignal.timeout(API_CONFIG.timeout),
       });
 
-      const data = await response.json();
+      console.log('🌐 ApiClient.post - Response status:', response.status);
+      console.log('🌐 ApiClient.post - Response headers:', Object.fromEntries(response.headers.entries()));
+
+      // Intentar parsear como JSON, pero manejar errores si no es JSON
+      let data;
+      const contentType = response.headers.get('content-type');
+      const text = await response.text();
+      console.log('🌐 ApiClient.post - Response text:', text);
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch (parseError) {
+          console.error('🌐 ApiClient.post - JSON parse error:', parseError);
+          data = { message: text || 'Error al procesar la respuesta' };
+        }
+      } else {
+        console.log('🌐 ApiClient.post - Non-JSON response');
+        data = { message: text || 'Respuesta no válida' };
+      }
 
       if (!response.ok) {
+        console.error('🌐 ApiClient.post - Error response:', data);
         throw new ApiError(
-          data.message || 'Error en la petición',
+          data.error || data.message || 'Error en la petición',
           response.status,
           data
         );
       }
 
+      console.log('🌐 ApiClient.post - Success response:', data);
       return { data, status: response.status };
     } catch (error) {
+      console.error('🌐 ApiClient.post - Exception:', error);
       if (error instanceof ApiError) {
         throw error;
+      }
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new ApiError(
+          'Error de conexión. Verifica que el servidor esté corriendo y la URL sea correcta.',
+          0
+        );
       }
       throw new ApiError(
         error instanceof Error ? error.message : 'Error de conexión',
@@ -159,6 +216,9 @@ export class ApiClient {
     try {
       const url = buildUrl(endpoint);
 
+      console.log('🌐 ApiClient.put - URL:', url);
+      console.log('🌐 ApiClient.put - Body:', body);
+
       const response = await fetch(url, {
         method: 'PUT',
         headers: getHeaders(options?.headers),
@@ -166,7 +226,25 @@ export class ApiClient {
         signal: AbortSignal.timeout(API_CONFIG.timeout),
       });
 
-      const data = await response.json();
+      console.log('🌐 ApiClient.put - Response status:', response.status);
+
+      // Intentar parsear como JSON, pero manejar errores si no es JSON
+      let data;
+      const contentType = response.headers.get('content-type');
+      const text = await response.text();
+      console.log('🌐 ApiClient.put - Response text:', text);
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch (parseError) {
+          console.error('🌐 ApiClient.put - JSON parse error:', parseError);
+          data = { message: text || 'Error al procesar la respuesta' };
+        }
+      } else {
+        console.log('🌐 ApiClient.put - Non-JSON response');
+        data = { message: text || 'Respuesta no válida' };
+      }
 
       if (!response.ok) {
         throw new ApiError(

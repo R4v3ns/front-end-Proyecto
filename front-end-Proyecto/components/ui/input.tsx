@@ -35,8 +35,8 @@ export function Input({
   const borderColor = error
     ? '#ff3b30'
     : isFocused
-    ? '#0a7ea4'
-    : iconColor;
+    ? '#404040'
+    : '#404040';
 
   const actualSecureTextEntry = secureTextEntry && !isPasswordVisible;
 
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     minHeight: 48,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: '#282828',
   },
   input: {
     flex: 1,
