@@ -226,7 +226,14 @@ export default function HomeScreen() {
               style={styles.horizontalScroll}
             >
               {featuredSongs.map((song) => (
-                <TouchableOpacity key={song.id} style={[styles.songCard, isMobile && styles.songCardMobile]}>
+                <TouchableOpacity 
+                  key={song.id} 
+                  style={[styles.songCard, isMobile && styles.songCardMobile]}
+                  onPress={() => {
+                    // Navegar al reproductor
+                    router.push('/now-playing');
+                  }}
+                >
                   <Image 
                     source={{ uri: song.image }} 
                     style={[styles.songImage, isMobile && styles.songImageMobile]}

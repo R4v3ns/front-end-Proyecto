@@ -22,6 +22,17 @@ export default function HomeScreen() {
         <HelloWave />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Reproductor de Música</ThemedText>
+        <ThemedText>
+          Accede al reproductor de música para escuchar tus canciones favoritas.
+        </ThemedText>
+        <Link href="/now-playing" style={styles.link}>
+          <ThemedText type="link" style={styles.linkText}>
+            Ir al Reproductor →
+          </ThemedText>
+        </Link>
+      </ThemedView>
+      <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Autenticación</ThemedText>
         <ThemedText>
           Accede a la pantalla de autenticación para iniciar sesión, registrarte o recuperar tu contraseña.

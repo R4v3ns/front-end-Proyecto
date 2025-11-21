@@ -1,4 +1,26 @@
 import { API_CONFIG } from '@/config/api';
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
+const isWeb = Platform.OS === 'web';
+
+// Función helper para limpiar datos de autenticación cuando el token expira
+const handleTokenExpiration = async () => {
+  try {
+    if (isWeb) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    } else {
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_KEY);
+    }
+    console.log('🔐 Token expired - Auth data cleared');
+  } catch (error) {
+    console.error('Error clearing auth data on token expiration:', error);
+  }
+};
 
 // Tipos para las respuestas de la API
 export interface ApiResponse<T = any> {
@@ -143,6 +165,16 @@ export class ApiClient {
 
       if (!response.ok) {
         console.error('🌐 ApiClient.get - Error response:', data);
+        
+        // Detectar errores de autenticación (401) o token expirado
+        if (response.status === 401 || 
+            (data.error && (data.error.includes('Token expirado') || data.error.includes('token expirado') || data.error.includes('Token expired'))) ||
+            (data.message && (data.message.includes('Token expirado') || data.message.includes('token expirado') || data.message.includes('Token expired')))) {
+          console.warn('⚠️ Token expired or unauthorized - clearing auth data');
+          // Limpiar el token y datos de usuario
+          await handleTokenExpiration();
+        }
+        
         throw new ApiError(
           data.error || data.message || 'Error en la petición',
           response.status,
@@ -223,6 +255,15 @@ export class ApiClient {
 
       if (!response.ok) {
         console.error('🌐 ApiClient.post - Error response:', data);
+        
+        // Detectar errores de autenticación (401) o token expirado
+        if (response.status === 401 || 
+            (data.error && (data.error.includes('Token expirado') || data.error.includes('token expirado') || data.error.includes('Token expired'))) ||
+            (data.message && (data.message.includes('Token expirado') || data.message.includes('token expirado') || data.message.includes('Token expired')))) {
+          console.warn('⚠️ Token expired or unauthorized - clearing auth data');
+          await handleTokenExpiration();
+        }
+        
         throw new ApiError(
           data.error || data.message || 'Error en la petición',
           response.status,
@@ -302,8 +343,18 @@ export class ApiClient {
       }
 
       if (!response.ok) {
+        console.error('🌐 ApiClient.put - Error response:', data);
+        
+        // Detectar errores de autenticación (401) o token expirado
+        if (response.status === 401 || 
+            (data.error && (data.error.includes('Token expirado') || data.error.includes('token expirado') || data.error.includes('Token expired'))) ||
+            (data.message && (data.message.includes('Token expirado') || data.message.includes('token expirado') || data.message.includes('Token expired')))) {
+          console.warn('⚠️ Token expired or unauthorized - clearing auth data');
+          await handleTokenExpiration();
+        }
+        
         throw new ApiError(
-          data.message || 'Error en la petición',
+          data.error || data.message || 'Error en la petición',
           response.status,
           data
         );
@@ -358,8 +409,18 @@ export class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
+        console.error('🌐 ApiClient.put - Error response:', data);
+        
+        // Detectar errores de autenticación (401) o token expirado
+        if (response.status === 401 || 
+            (data.error && (data.error.includes('Token expirado') || data.error.includes('token expirado') || data.error.includes('Token expired'))) ||
+            (data.message && (data.message.includes('Token expirado') || data.message.includes('token expirado') || data.message.includes('Token expired')))) {
+          console.warn('⚠️ Token expired or unauthorized - clearing auth data');
+          await handleTokenExpiration();
+        }
+        
         throw new ApiError(
-          data.message || 'Error en la petición',
+          data.error || data.message || 'Error en la petición',
           response.status,
           data
         );

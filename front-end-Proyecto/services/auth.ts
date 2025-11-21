@@ -1,44 +1,42 @@
 import ApiClient, { ApiError } from './api';
 import { ENDPOINTS } from '@/config/api';
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+import {
+  LoginCredentials,
+  RegisterData,
+  ForgotPasswordData,
+  ResetPasswordData,
+  ChangePasswordData,
+  AuthResponse,
+} from '@/models/auth';
 
-// Tipos para autenticación (basados en el backend real)
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
+const TOKEN_KEY = 'auth_token';
+const isWeb = Platform.OS === 'web';
 
-export interface RegisterData {
-  email: string;
-  password: string;
-  passwordConfirmation: string;
-  firstName?: string;
-  lastName?: string;
-  termsAccepted: boolean;
-  privacyAccepted: boolean;
-}
+// Función helper para obtener el token
+const getAuthToken = async (): Promise<string | null> => {
+  try {
+    if (isWeb) {
+      return localStorage.getItem(TOKEN_KEY);
+    } else {
+      return await SecureStore.getItemAsync(TOKEN_KEY);
+    }
+  } catch (error) {
+    console.error('Error getting auth token:', error);
+    return null;
+  }
+};
 
-export interface ForgotPasswordData {
-  email: string;
-}
-
-export interface ResetPasswordData {
-  token: string;
-  password: string;
-  confirmPassword: string;
-}
-
-export interface AuthResponse {
-  token?: string;
-  user?: {
-    id: string | number;
-    email: string;
-    firstName?: string;
-    lastName?: string;
-  };
-  message?: string;
-  error?: string;
-  field?: string;
-}
+// Re-exportar tipos desde models para compatibilidad
+export type {
+  LoginCredentials,
+  RegisterData,
+  ForgotPasswordData,
+  ResetPasswordData,
+  ChangePasswordData,
+  AuthResponse,
+} from '@/models/auth';
 
 // Servicio de autenticación
 export class AuthService {
@@ -167,6 +165,43 @@ export class AuthService {
     } catch (error) {
       if (error instanceof ApiError) {
         throw new Error(error.message || 'Error al restablecer la contraseña');
+      }
+      throw new Error('Error de conexión. Verifica tu conexión a internet.');
+    }
+  }
+
+  /**
+   * Cambia la contraseña del usuario autenticado
+   */
+  static async changePassword(data: ChangePasswordData): Promise<{ message: string }> {
+    try {
+      const token = await getAuthToken();
+      
+      if (!token) {
+        throw new Error('No hay token de autenticación. Por favor, inicia sesión nuevamente.');
+      }
+
+      const response = await ApiClient.post<{ message: string }>(
+        ENDPOINTS.USERS.CHANGE_PASSWORD,
+        {
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword,
+          confirmPassword: data.confirmPassword,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      return response.data || { message: 'Contraseña actualizada exitosamente' };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const errorMessage = error.data?.error || 
+                            error.data?.message || 
+                            error.message || 
+                            'Error al cambiar la contraseña';
+        throw new Error(errorMessage);
       }
       throw new Error('Error de conexión. Verifica tu conexión a internet.');
     }

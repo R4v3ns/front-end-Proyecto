@@ -1,20 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-
-interface User {
-  id: string | number;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  biography?: string;
-  phone?: string;
-  birthDate?: string;
-  profileImage?: string;
-  bannerColor?: string;
-  bannerImage?: string;
-}
+import { User } from '@/models/user';
+import { formatBirthDateFromISO } from '@/utils/date';
 
 interface AuthContextType {
   user: User | null;
@@ -104,7 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (storedToken && storedUser) {
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        const userData = JSON.parse(storedUser) as User;
+        // Convertir birthDate de ISO a DD/MM/YYYY si existe
+        if (userData.birthDate) {
+          userData.birthDate = formatBirthDateFromISO(userData.birthDate);
+        }
+        setUser(userData);
       }
     } catch (error) {
       console.error('Error loading auth data:', error);
@@ -115,10 +108,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (userData: User, authToken: string) => {
     try {
+      // Convertir birthDate de ISO a DD/MM/YYYY si existe
+      const formattedUser = { ...userData };
+      if (formattedUser.birthDate) {
+        formattedUser.birthDate = formatBirthDateFromISO(formattedUser.birthDate);
+      }
+      
       await storage.setItem(TOKEN_KEY, authToken);
-      await storage.setItem(USER_KEY, JSON.stringify(userData));
+      await storage.setItem(USER_KEY, JSON.stringify(formattedUser));
       setToken(authToken);
-      setUser(userData);
+      setUser(formattedUser);
       console.log('✅ Auth data saved successfully');
     } catch (error) {
       console.error('Error saving auth data:', error);
@@ -139,9 +138,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = async (userData: User) => {
     try {
-      console.log('💾 AuthContext.updateUser - Saving user data:', userData);
-      setUser(userData);
-      await storage.setItem(USER_KEY, JSON.stringify(userData));
+      // Convertir birthDate de ISO a DD/MM/YYYY si existe
+      const formattedUser = { ...userData };
+      if (formattedUser.birthDate) {
+        formattedUser.birthDate = formatBirthDateFromISO(formattedUser.birthDate);
+      }
+      
+      console.log('💾 AuthContext.updateUser - Saving user data:', formattedUser);
+      setUser(formattedUser);
+      await storage.setItem(USER_KEY, JSON.stringify(formattedUser));
       console.log('✅ AuthContext.updateUser - User data saved successfully');
     } catch (error) {
       console.error('❌ AuthContext.updateUser - Error updating user data:', error);

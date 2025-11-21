@@ -106,13 +106,21 @@ export default function ProfileScreen() {
   };
 
   const getUserDisplayName = () => {
-    if (user?.firstName) {
-      return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
-    }
+    // Solo mostrar el nombre de usuario (name), nunca firstName/lastName
+    // firstName y lastName son información personal que no se muestra
+    console.log('🔍 getUserDisplayName - user.name:', user?.name);
+    console.log('🔍 getUserDisplayName - user.firstName:', user?.firstName);
+    console.log('🔍 getUserDisplayName - user.lastName:', user?.lastName);
+    
     if (user?.name) {
-      return user.name;
+      const displayName = user.name.trim();
+      console.log('🔍 getUserDisplayName - Returning:', displayName);
+      return displayName;
     }
-    return user?.email?.split('@')[0] || 'Usuario';
+    // Si no hay nombre de usuario, usar el email como fallback
+    const fallback = user?.email?.split('@')[0] || 'Usuario';
+    console.log('🔍 getUserDisplayName - Using fallback:', fallback);
+    return fallback;
   };
 
   return (
@@ -237,11 +245,11 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Bienvenida con nombre del usuario */}
-          <View style={styles.welcomeSection}>
-            <ThemedText style={styles.welcomeTitle}>
+          <View style={[styles.welcomeSection, isMobile && styles.welcomeSectionMobile]}>
+            <ThemedText style={[styles.welcomeTitle, isMobile && styles.welcomeTitleMobile]} numberOfLines={2}>
               ¡Bienvenido, {getUserDisplayName()}!
             </ThemedText>
-            <ThemedText style={styles.welcomeSubtitle}>
+            <ThemedText style={[styles.welcomeSubtitle, isMobile && styles.welcomeSubtitleMobile]}>
               ¿Qué quieres escuchar hoy?
             </ThemedText>
           </View>
@@ -260,7 +268,14 @@ export default function ProfileScreen() {
               style={styles.horizontalScroll}
             >
               {featuredSongs.map((song) => (
-                <TouchableOpacity key={song.id} style={[styles.songCard, isMobile && styles.songCardMobile]}>
+                <TouchableOpacity 
+                  key={song.id} 
+                  style={[styles.songCard, isMobile && styles.songCardMobile]}
+                  onPress={() => {
+                    // Navegar al reproductor
+                    router.push('/now-playing');
+                  }}
+                >
                   <Image 
                     source={{ uri: song.image }} 
                     style={[styles.songImage, isMobile && styles.songImageMobile]}
@@ -525,15 +540,30 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     paddingTop: 16,
   },
+  welcomeSectionMobile: {
+    marginBottom: 24,
+    paddingTop: 12,
+  },
   welcomeTitle: {
     fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  welcomeTitleMobile: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    lineHeight: 26,
+    marginBottom: 6,
   },
   welcomeSubtitle: {
     fontSize: 16,
     color: '#B3B3B3',
+  },
+  welcomeSubtitleMobile: {
+    fontSize: 14,
   },
   section: {
     marginBottom: 32,

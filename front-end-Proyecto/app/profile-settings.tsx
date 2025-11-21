@@ -21,30 +21,39 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { UserService, UpdateProfileData } from '@/services/user';
+import { formatBirthDateFromISO, formatBirthDateInput, isValidBirthDate } from '@/utils/date';
 
 const { width, height } = Dimensions.get('window');
 const isMobile = width < 768;
 
 export default function ProfileSettingsScreen() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
   
   // Estados del formulario
   const [username, setUsername] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [biography, setBiography] = useState('');
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [bannerColor, setBannerColor] = useState('#B81F5A');
   const [bannerImage, setBannerImage] = useState<string | null>(null);
+  const [plan, setPlan] = useState<'Free' | 'VIP'>('Free');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Cargar datos del usuario al iniciar
   useEffect(() => {
     const loadProfileData = async () => {
       if (!user) return;
+      
+      // Solo cargar una vez al montar el componente
+      if (hasLoadedOnce) return;
       
       setLoading(true);
       try {
@@ -53,43 +62,181 @@ export default function ProfileSettingsScreen() {
         
         // Si hay datos del backend, usarlos
         if (profileData) {
-          setUsername(
-            profileData.name || 
-            (profileData.firstName && profileData.lastName 
-              ? `${profileData.firstName} ${profileData.lastName}` 
-              : profileData.firstName) || 
-            user.email?.split('@')[0] || 
-            ''
+          
+          const backendUsername = (profileData as any).username?.trim() || '';
+          const backendName = profileData.name?.trim() || '';
+          const backendFirstName = profileData.firstName?.trim() || '';
+          const backendLastName = profileData.lastName?.trim() || '';
+          
+          console.log('📋 Loading profile - Backend username:', backendUsername);
+          console.log('📋 Loading profile - Backend name:', backendName);
+          console.log('📋 Loading profile - Backend firstName:', backendFirstName);
+          console.log('📋 Loading profile - Backend lastName:', backendLastName);
+          console.log('📋 Loading profile - Context name:', user.name);
+          
+          // Priorizar username del backend, luego name, luego el del contexto
+          const backendValue = backendUsername || backendName;
+          
+          // Verificar si el valor del backend es una combinación de firstName/lastName
+          let loadedUsername = '';
+          if (backendValue) {
+            const constructedName = backendFirstName && backendLastName 
+              ? `${backendFirstName} ${backendLastName}`.trim()
+              : backendFirstName || '';
+            
+            // Si el valor del backend es igual a la combinación de firstName/lastName, no usarlo
+            if (backendValue === constructedName || backendValue === backendFirstName) {
+              console.log('⚠️ Backend username/name appears to be constructed from firstName/lastName, using context name or fallback');
+              // Usar el name del contexto si existe y es diferente, sino usar solo el firstName o email
+              if (user.name && user.name !== constructedName && user.name !== backendFirstName) {
+                loadedUsername = user.name;
+              } else {
+                // Si no hay un name válido, usar solo el firstName (sin apellidos) o email
+                loadedUsername = backendFirstName || user.name || user.email?.split('@')[0] || '';
+              }
+            } else {
+              // El valor del backend es válido (es un nombre de usuario real)
+              loadedUsername = backendValue;
+            }
+          } else {
+            // No hay username/name del backend, usar el del contexto o fallback
+            loadedUsername = user.name || user.email?.split('@')[0] || '';
+          }
+          
+          console.log('📋 Loading profile - Final username:', loadedUsername);
+          
+          setUsername(loadedUsername);
+          
+          // Cargar firstName y lastName desde profileData, completamente independientes del username
+          setFirstName(backendFirstName);
+          setLastName(backendLastName);
+          
+          // Cargar biography, phone y birthDate - usar valores del backend si existen y son válidos
+          // Si el backend devuelve null, undefined o cadena vacía, usar valores del contexto del usuario
+          const backendBiography = profileData.biography;
+          const backendPhone = profileData.phone;
+          const backendBirthDate = profileData.birthDate;
+          
+          console.log('📋 Loading profile - Backend biography:', backendBiography);
+          console.log('📋 Loading profile - Backend phone:', backendPhone);
+          console.log('📋 Loading profile - Backend birthDate:', backendBirthDate);
+          console.log('📋 Loading profile - Context biography:', user.biography);
+          console.log('📋 Loading profile - Context phone:', user.phone);
+          console.log('📋 Loading profile - Context birthDate:', user.birthDate);
+          
+          // Usar valores del backend si son válidos, sino usar los del contexto
+          setBiography(
+            (backendBiography !== null && backendBiography !== undefined && backendBiography !== '') 
+              ? backendBiography 
+              : (user.biography || '')
           );
-          setBiography(profileData.biography || '');
-          setPhone(profileData.phone || '');
-          setBirthDate(profileData.birthDate || '');
+          setPhone(
+            (backendPhone !== null && backendPhone !== undefined && backendPhone !== '') 
+              ? backendPhone 
+              : (user.phone || '')
+          );
+          // Convertir birthDate de ISO a DD/MM/YYYY si viene del backend
+          setBirthDate(
+            (backendBirthDate !== null && backendBirthDate !== undefined && backendBirthDate !== '') 
+              ? formatBirthDateFromISO(backendBirthDate) 
+              : (user.birthDate || '')
+          );
           setProfileImage(profileData.profileImage || null);
           setBannerColor((profileData as any).bannerColor || '#B81F5A');
           setBannerImage((profileData as any).bannerImage || null);
+          // Cargar el plan desde el perfil del backend o del usuario, por defecto 'Free'
+          setPlan((profileData.plan as 'Free' | 'VIP') || (user.plan as 'Free' | 'VIP') || 'Free');
+          
+          // Actualizar el contexto del usuario con el name correcto (sin firstName/lastName)
+          // Esto asegura que el name correcto esté disponible en toda la aplicación
+          if (loadedUsername && loadedUsername !== user.name) {
+            // Helper para obtener valor válido del backend o mantener el del contexto
+            const getContextValue = (backendValue: any, contextValue: any): any => {
+              if (backendValue !== null && backendValue !== undefined && backendValue !== '') {
+                return backendValue;
+              }
+              return contextValue;
+            };
+            
+            const updatedUserContext = {
+              ...user,
+              name: loadedUsername, // Actualizar el name con el valor correcto
+              firstName: backendFirstName || user.firstName,
+              lastName: backendLastName || user.lastName,
+              // Usar valores válidos del backend, sino mantener los del contexto
+              biography: getContextValue(profileData.biography, user.biography),
+              phone: getContextValue(profileData.phone, user.phone),
+              birthDate: profileData.birthDate && profileData.birthDate !== '' 
+                ? formatBirthDateFromISO(profileData.birthDate) 
+                : user.birthDate,
+              profileImage: getContextValue(profileData.profileImage, user.profileImage),
+              bannerColor: getContextValue((profileData as any).bannerColor, user.bannerColor),
+              bannerImage: getContextValue((profileData as any).bannerImage, user.bannerImage),
+              plan: (profileData.plan as 'Free' | 'VIP') || user.plan || 'Free',
+            };
+            console.log('📋 Updating user context with corrected name:', updatedUserContext);
+            await updateUser(updatedUserContext);
+          }
         } else {
           // Si no hay datos del backend, usar los del contexto
-          setUsername(user.name || user.firstName || user.email?.split('@')[0] || '');
+          // Username y firstName son completamente independientes
+          setUsername(user.name || '');
+          setFirstName(user.firstName || '');
+          setLastName(user.lastName || '');
+          setPlan(user.plan || 'Free');
         }
       } catch (error) {
         console.error('Error loading profile:', error);
+        
+        // Detectar si el error es por token expirado
+        const isTokenExpired = error instanceof Error && (
+          error.message.includes('Token expirado') || 
+          error.message.includes('token expirado') ||
+          error.message.includes('Token expired') ||
+          error.message.includes('401') ||
+          error.message.includes('Unauthorized')
+        );
+        
+        if (isTokenExpired) {
+          // Limpiar el contexto y redirigir al login
+          await logout();
+          Alert.alert(
+            'Sesión expirada',
+            'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  router.replace('/auth?screen=login');
+                },
+              },
+            ]
+          );
+          return;
+        }
+        
         // Si falla, usar los datos del contexto local
-        setUsername(user.name || user.firstName || user.email?.split('@')[0] || '');
+        // Username y firstName son completamente independientes
+        setUsername(user.name || '');
+        setFirstName(user.firstName || '');
+        setLastName(user.lastName || '');
       } finally {
         setLoading(false);
+        setHasLoadedOnce(true);
       }
     };
 
     loadProfileData();
-  }, [user]);
+  }, [user, hasLoadedOnce]);
+
 
   const getUserDisplayName = () => {
-    if (user?.firstName) {
-      return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
-    }
+    // Solo mostrar el nombre de usuario (name), nunca firstName/lastName
+    // firstName y lastName son información personal que no se muestra
     if (user?.name) {
       return user.name;
     }
+    // Si no hay nombre de usuario, usar el email como fallback
     return user?.email?.split('@')[0] || 'Usuario';
   };
 
@@ -97,15 +244,30 @@ export default function ProfileSettingsScreen() {
     return getUserDisplayName().charAt(0).toUpperCase();
   };
 
-  // Función para validar y formatear el teléfono (solo números)
+  // Función para validar y formatear el teléfono (números y signo +)
   const handlePhoneChange = (text: string) => {
-    // Remover todos los caracteres que no sean números
-    const cleaned = text.replace(/\D/g, '');
+    // Permitir solo números y el signo + al inicio
+    let cleaned = '';
     
-    // Limitar a 15 dígitos
-    const limited = cleaned.slice(0, 15);
+    // Si el texto empieza con +, mantenerlo
+    if (text.startsWith('+')) {
+      cleaned = '+' + text.slice(1).replace(/[^\d\s]/g, ''); // Mantener + y solo números/espacios después
+    } else {
+      // Si no empieza con +, permitir solo números
+      cleaned = text.replace(/[^\d]/g, '');
+    }
     
-    setPhone(limited);
+    // Limitar a 15 dígitos (sin contar el +)
+    const digitsOnly = cleaned.replace(/[^\d]/g, '');
+    if (digitsOnly.length > 15) {
+      if (cleaned.startsWith('+')) {
+        cleaned = '+' + digitsOnly.slice(0, 15);
+      } else {
+        cleaned = digitsOnly.slice(0, 15);
+      }
+    }
+    
+    setPhone(cleaned);
   };
 
   // Función para obtener solo números del teléfono antes de guardar
@@ -175,6 +337,7 @@ export default function ProfileSettingsScreen() {
     );
   };
 
+
   const handleSave = async () => {
     if (!username.trim()) {
       Alert.alert('Error', 'El nombre de usuario es requerido');
@@ -183,7 +346,7 @@ export default function ProfileSettingsScreen() {
 
     setSaving(true);
     try {
-      console.log('💾 Saving profile data...');
+      console.log('Saving profile data...');
       
       // Preparar los datos para enviar al backend
       // El backend espera firstName y lastName, así que dividimos el nombre completo
@@ -196,16 +359,38 @@ export default function ProfileSettingsScreen() {
         return;
       }
       
+      // Validar fecha de nacimiento si está presente
+      const trimmedBirthDate = birthDate.trim();
+      if (trimmedBirthDate && !isValidBirthDate(trimmedBirthDate)) {
+        Alert.alert('Error', 'La fecha de nacimiento no es válida. Usa el formato DD/MM/AAAA');
+        return;
+      }
+      
+      // name (username) y firstName son completamente independientes
+      // Enviar ambos campos siempre, sin importar si son iguales o diferentes
+      const finalFirstName = firstName.trim();
+      const finalLastName = lastName.trim();
+      
       const profileData: UpdateProfileData = {
-        firstName: nameParts[0] || username.trim(),
-        lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined,
+        username: username.trim(), // Nombre de usuario (alias) - el backend espera "username"
+        name: username.trim(), // También enviar como "name" para compatibilidad
+        firstName: finalFirstName || undefined, // Nombre personal - se guarda como "firstName" en el backend (NO se muestra en la UI)
+        lastName: finalLastName || undefined, // Apellidos personales - se guarda como "lastName" en el backend (NO se muestra en la UI)
         biography: biography.trim() || undefined,
         phone: phoneNumbersOnly || undefined, // Enviar solo números al backend
-        birthDate: birthDate.trim() || undefined,
+        birthDate: trimmedBirthDate || undefined, // Se convertirá a YYYY-MM-DD en el servicio
         profileImage: profileImage || undefined,
         bannerColor: bannerColor || undefined,
         bannerImage: bannerImage || undefined,
-      } as any;
+        plan: plan || 'Free', // Incluir el plan en los datos a guardar
+      };
+      
+      console.log('📤 Sending profile data to backend:', {
+        ...profileData,
+        profileImage: profileData.profileImage ? 'Image provided' : 'No image',
+        username: profileData.username,
+        name: profileData.name,
+      });
 
       // Remover campos undefined para no enviarlos al backend
       Object.keys(profileData).forEach(key => {
@@ -215,35 +400,114 @@ export default function ProfileSettingsScreen() {
       });
 
       // Llamar al servicio para actualizar el perfil en la base de datos
-      console.log('📤 Sending profile data to backend:', profileData);
+      console.log('Sending profile data to backend:', profileData);
       const response = await UserService.updateProfile(profileData);
       
-      console.log('✅ Profile updated successfully in backend:', response);
-      console.log('📥 Response from backend:', JSON.stringify(response, null, 2));
+      console.log('Profile updated successfully in backend:', response);
+      console.log('Response from backend:', JSON.stringify(response, null, 2));
 
       // Actualizar el contexto local con los datos del servidor
       // nameParts ya está declarado arriba, así que lo reutilizamos
       // Si el backend devuelve un objeto user dentro de la respuesta, usarlo
       const backendUser = (response as any).user || response;
       
+      // El backend puede devolver "username" o "name" - ambos representan el nombre de usuario
+      // Priorizar el username del backend si existe, sino el name, sino usar el del formulario
+      const backendUsername = backendUser.username?.trim() || '';
+      const backendName = backendUser.name?.trim() || '';
+      const formUsername = username.trim();
+      
+      console.log('📋 Backend response username:', backendUsername);
+      console.log('📋 Backend response name:', backendName);
+      console.log('📋 Form username:', formUsername);
+      
+      // El name es el nombre de usuario (alias) que se muestra en la UI
+      // NO debe ser una combinación de firstName y lastName
+      let finalName = '';
+      
+      // Priorizar username del backend, luego name, luego el del formulario
+      const backendValue = backendUsername || backendName;
+      
+      if (backendValue) {
+        const constructedName = firstName.trim() && lastName.trim() 
+          ? `${firstName.trim()} ${lastName.trim()}`.trim()
+          : firstName.trim() || '';
+        
+        // Si el valor del backend es igual a la combinación de firstName/lastName, no usarlo
+        // Usar el del formulario en su lugar
+        if (backendValue === constructedName || backendValue === firstName.trim()) {
+          console.log('⚠️ Backend username/name appears to be constructed from firstName/lastName, using form username instead');
+          finalName = formUsername;
+        } else {
+          // El valor del backend es válido (es un nombre de usuario real)
+          finalName = backendValue;
+        }
+      } else {
+        // No hay username/name del backend, usar el del formulario
+        finalName = formUsername;
+      }
+      
+      console.log('📋 Final name to use:', finalName);
+      
+      // Helper para obtener valor válido: priorizar backend si tiene valor válido, sino usar formulario
+      const getValidValue = (backendValue: any, formValue: string): string | undefined => {
+        // Si el backend tiene un valor válido (no null, no undefined, no cadena vacía), usarlo
+        if (backendValue !== null && backendValue !== undefined && backendValue !== '') {
+          return String(backendValue).trim() || undefined;
+        }
+        // Si no, usar el valor del formulario
+        const trimmedFormValue = formValue.trim();
+        return trimmedFormValue || undefined;
+      };
+      
+      // Helper para birthDate que necesita conversión de formato
+      const getValidBirthDate = (backendValue: any, formValue: string): string | undefined => {
+        if (backendValue !== null && backendValue !== undefined && backendValue !== '') {
+          // Convertir de ISO a DD/MM/YYYY si viene del backend
+          return formatBirthDateFromISO(backendValue);
+        }
+        const trimmedFormValue = formValue.trim();
+        return trimmedFormValue || undefined;
+      };
+      
+      console.log('Backend response - biography:', backendUser.biography);
+      console.log('Backend response - phone:', backendUser.phone);
+      console.log('Backend response - birthDate:', backendUser.birthDate);
+      console.log('Form values - biography:', biography);
+      console.log('Form values - phone:', phone);
+      console.log('Form values - birthDate:', birthDate);
+      
       const updatedUser = {
         ...user!,
-        // Usar los datos del servidor si están disponibles, sino usar los locales
-        name: backendUser.name || username.trim(),
-        firstName: backendUser.firstName || nameParts[0] || username.trim(),
-        lastName: backendUser.lastName || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined),
-        // Incluir todos los campos, usando los del servidor o los locales
-        biography: backendUser.biography !== undefined ? backendUser.biography : (biography.trim() || undefined),
-        phone: backendUser.phone !== undefined ? backendUser.phone : (phone.trim() || undefined),
-        birthDate: backendUser.birthDate !== undefined ? backendUser.birthDate : (birthDate.trim() || undefined),
-        profileImage: backendUser.profileImage !== undefined ? backendUser.profileImage : (profileImage || undefined),
-        bannerColor: backendUser.bannerColor !== undefined ? backendUser.bannerColor : (bannerColor || undefined),
-        bannerImage: backendUser.bannerImage !== undefined ? backendUser.bannerImage : (bannerImage || undefined),
+      
+        // Usar el name del backend si está disponible, sino el del formulario
+        // Este es el nombre de usuario (alias) que se mostrará en toda la aplicación
+        name: finalName,
+        firstName: firstName.trim() || undefined, // Usar SOLO el firstName del formulario, no el del backend
+        lastName: lastName.trim() || undefined, // Usar SOLO el lastName del formulario
+        // Usar valores válidos: priorizar backend si tiene valor, sino usar formulario
+        biography: getValidValue(backendUser.biography, biography),
+        phone: getValidValue(backendUser.phone, phone),
+        birthDate: getValidBirthDate(backendUser.birthDate, birthDate),
+        profileImage: backendUser.profileImage !== undefined && backendUser.profileImage !== null && backendUser.profileImage !== '' 
+          ? backendUser.profileImage 
+          : (profileImage || undefined),
+        bannerColor: backendUser.bannerColor !== undefined && backendUser.bannerColor !== null && backendUser.bannerColor !== ''
+          ? backendUser.bannerColor 
+          : (bannerColor || undefined),
+        bannerImage: backendUser.bannerImage !== undefined && backendUser.bannerImage !== null && backendUser.bannerImage !== ''
+          ? backendUser.bannerImage 
+          : (bannerImage || undefined),
+        plan: (backendUser.plan as 'Free' | 'VIP') || plan || 'Free', // Incluir el plan desde el servidor o el estado local
       };
+      
+      console.log('📋 Final updated user - biography:', updatedUser.biography);
+      console.log('📋 Final updated user - phone:', updatedUser.phone);
+      console.log('📋 Final updated user - birthDate:', updatedUser.birthDate);
 
-      console.log('💾 Updating user context with:', updatedUser);
+      console.log('Updating user context with:', updatedUser);
       await updateUser(updatedUser);
-      console.log('✅ User context updated and saved successfully');
+      console.log('User context updated and saved successfully');
       
       // Mostrar mensaje de éxito
       Alert.alert(
@@ -253,28 +517,65 @@ export default function ProfileSettingsScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Recargar los datos del perfil para asegurarse de tener la última versión
-              setTimeout(async () => {
-                try {
-                  const freshProfile = await UserService.getProfile();
-                  const freshUser = {
-                    ...user!,
-                    ...freshProfile,
-                  };
-                  updateUser(freshUser);
-                } catch (error) {
-                  console.error('Error reloading profile:', error);
-                }
-              }, 500);
+              // NO recargar el perfil para evitar que el backend sobrescriba los valores del formulario
+              // El backend podría estar sincronizando name con firstName, así que confiamos en los valores del formulario
               router.back();
             },
           },
         ]
       );
     } catch (error) {
-      console.error('❌ Error saving profile:', error);
-      const errorMessage = error instanceof Error ? error.message : 'No se pudo guardar el perfil';
-      Alert.alert('Error', errorMessage);
+      console.error('Error saving profile:', error);
+      
+      // Detectar si el error es por token expirado
+      // Verificar tanto el mensaje como los datos del error (ApiError tiene una propiedad data)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorData = (error as any)?.data;
+      const errorStatus = (error as any)?.status;
+      
+      const isTokenExpired = 
+        errorStatus === 401 ||
+        errorMessage.includes('Token expirado') || 
+        errorMessage.includes('token expirado') ||
+        errorMessage.includes('Token expired') ||
+        errorMessage.includes('401') ||
+        errorMessage.includes('Unauthorized') ||
+        (errorData && (
+          errorData.error?.includes('Token expirado') ||
+          errorData.error?.includes('token expirado') ||
+          errorData.error?.includes('Token expired') ||
+          errorData.message?.includes('Token expirado') ||
+          errorData.message?.includes('token expirado') ||
+          errorData.message?.includes('Token expired')
+        ));
+      
+      console.log('🔍 Error details:', {
+        message: errorMessage,
+        status: errorStatus,
+        data: errorData,
+        isTokenExpired
+      });
+      
+      if (isTokenExpired) {
+        // Limpiar el contexto y redirigir al login
+        await logout();
+        Alert.alert(
+          'Sesión expirada',
+          'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                router.replace('/auth?screen=login');
+              },
+            },
+          ]
+        );
+        return;
+      }
+      
+      const finalErrorMessage = error instanceof Error ? error.message : 'No se pudo guardar el perfil';
+      Alert.alert('Error', finalErrorMessage);
     } finally {
       setSaving(false);
     }
@@ -398,6 +699,18 @@ export default function ProfileSettingsScreen() {
           <ThemedText style={styles.bannerHint}>
             Toca el banner para cambiarlo
           </ThemedText>
+          
+          {/* Indicador de plan */}
+          <View style={styles.planBadge}>
+            <Ionicons 
+              name={plan === 'VIP' ? 'diamond' : 'musical-notes'} 
+              size={16} 
+              color={plan === 'VIP' ? '#FFD700' : '#FFFFFF'} 
+            />
+            <ThemedText style={[styles.planText, plan === 'VIP' && styles.planTextVIP]}>
+              Plan {plan}
+            </ThemedText>
+          </View>
         </View>
 
         {/* Formulario */}
@@ -407,6 +720,22 @@ export default function ProfileSettingsScreen() {
             placeholder="Ingresa tu nombre de usuario"
             value={username}
             onChangeText={setUsername}
+            autoCapitalize="words"
+          />
+
+          <Input
+            label="Nombre"
+            placeholder="Ingresa tu nombre"
+            value={firstName}
+            onChangeText={setFirstName}
+            autoCapitalize="words"
+          />
+
+          <Input
+            label="Apellidos"
+            placeholder="Ingresa tus apellidos"
+            value={lastName}
+            onChangeText={setLastName}
             autoCapitalize="words"
           />
 
@@ -426,27 +755,43 @@ export default function ProfileSettingsScreen() {
 
           <Input
             label="Teléfono"
-            placeholder="1234567890"
+            placeholder="+569 1234 5678"
             value={phone}
             onChangeText={handlePhoneChange}
-            keyboardType="numeric"
+            keyboardType="phone-pad"
             autoComplete="tel"
-            maxLength={15}
+            maxLength={16}
           />
           <ThemedText style={styles.hint}>
-            Solo se permiten números (máximo 15 dígitos)
+            Puedes incluir el signo + al inicio (máximo 15 dígitos)
           </ThemedText>
 
           <Input
             label="Fecha de nacimiento"
             placeholder="DD/MM/AAAA"
             value={birthDate}
-            onChangeText={setBirthDate}
+            onChangeText={(text) => setBirthDate(formatBirthDateInput(text))}
             keyboardType="numeric"
+            maxLength={10}
           />
           <ThemedText style={styles.hint}>
             Formato: DD/MM/AAAA (ejemplo: 15/03/1990)
           </ThemedText>
+        </View>
+
+        {/* Botón para cambiar contraseña */}
+        <View style={styles.passwordButtonSection}>
+          <TouchableOpacity
+            style={[styles.changePasswordNavButton, isMobile && styles.changePasswordNavButtonMobile]}
+            onPress={() => router.push('/change-password')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="lock-closed-outline" size={isMobile ? 18 : 20} color="#FFFFFF" />
+            <ThemedText style={[styles.changePasswordNavButtonText, isMobile && styles.changePasswordNavButtonTextMobile]}>
+              Cambiar contraseña
+            </ThemedText>
+            <Ionicons name="chevron-forward" size={isMobile ? 18 : 20} color="#B3B3B3" />
+          </TouchableOpacity>
         </View>
 
         {/* Botones de acción */}
@@ -458,7 +803,7 @@ export default function ProfileSettingsScreen() {
             activeOpacity={0.8}
           >
             {saving ? (
-              <ActivityIndicator color="#000000" />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <ThemedText style={styles.saveButtonText}>
                 Guardar cambios
@@ -608,9 +953,65 @@ const styles = StyleSheet.create({
     color: '#B3B3B3',
     textAlign: 'center',
   },
+  planBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#282828',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#404040',
+  },
+  planText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  planTextVIP: {
+    color: '#FFD700',
+  },
   formSection: {
     marginBottom: 32,
     gap: 20,
+  },
+  passwordSection: {
+    marginBottom: 32,
+    padding: 20,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#282828',
+    gap: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  changePasswordButton: {
+    backgroundColor: '#F22976',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    marginTop: 8,
+  },
+  changePasswordButtonDisabled: {
+    opacity: 0.6,
+  },
+  changePasswordButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   textAreaContainer: {
     marginBottom: 8,
@@ -636,6 +1037,36 @@ const styles = StyleSheet.create({
     marginTop: -16,
     marginBottom: 8,
   },
+  passwordButtonSection: {
+    marginBottom: 32,
+    padding: 20,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#282828',
+  },
+  changePasswordNavButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  changePasswordNavButtonMobile: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  changePasswordNavButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  changePasswordNavButtonTextMobile: {
+    fontSize: 14,
+  },
   actionsSection: {
     gap: 12,
     marginTop: 8,
@@ -659,7 +1090,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   cancelButton: {
     marginTop: 4,

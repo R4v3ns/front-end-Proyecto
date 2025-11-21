@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ThemedView } from '@/components/themed-view';
@@ -13,7 +14,7 @@ type AuthScreen = 'login' | 'register' | 'forgot-password';
 
 export default function AuthScreen() {
   const params = useLocalSearchParams<{ screen?: string | string[] }>();
-  const { login } = useAuth();
+  const { login, updateUser } = useAuth();
   
   // Función helper para obtener el valor del parámetro screen
   const getScreenParam = (): string | undefined => {
@@ -152,37 +153,107 @@ export default function AuthScreen() {
         if (userData && typeof userData === 'object' && (userData.id || userData.email)) {
           // Tenemos token y datos de usuario completos
           console.log('✅ Token and user received, saving to context...');
+          // Construir el usuario inicial
+          // El name es el nombre de usuario (alias), NO debe ser firstName/lastName
+          const initialName = userData.name?.trim() || loginEmail.trim().split('@')[0];
+          
+          console.log('📋 Login - userData.name:', userData.name);
+          console.log('📋 Login - userData.firstName:', userData.firstName);
+          console.log('📋 Login - userData.lastName:', userData.lastName);
+          console.log('📋 Login - Initial name to use:', initialName);
+          
           const finalUser = {
             id: userData.id || loginEmail.trim(),
             email: userData.email || loginEmail.trim(),
-            firstName: userData.firstName || userData.name || undefined,
-            lastName: userData.lastName || undefined,
-            name: userData.name || userData.firstName || loginEmail.trim().split('@')[0],
+            firstName: userData.firstName || undefined, // Información personal, no se muestra
+            lastName: userData.lastName || undefined, // Información personal, no se muestra
+            name: initialName, // Nombre de usuario (alias) que se muestra en la UI
+            plan: (userData.plan as 'Free' | 'VIP') || 'Free', // Incluir el plan desde la respuesta
           };
           await login(finalUser, authToken);
-          console.log('✅ User saved, redirecting to profile...');
+          
+          // Intentar cargar el perfil completo desde la base de datos
+          try {
+            const { UserService } = await import('@/services/user');
+            const fullProfile = await UserService.getProfile();
+            if (fullProfile) {
+              // El name del backend es el nombre de usuario (alias) que se muestra en la UI
+              // NO debe ser una combinación de firstName y lastName
+              // El backend puede devolver "username" o "name" - ambos representan el nombre de usuario
+              const backendUsername = (fullProfile as any).username?.trim() || '';
+              const backendName = fullProfile.name?.trim() || '';
+              const backendFirstName = fullProfile.firstName?.trim() || '';
+              const backendLastName = fullProfile.lastName?.trim() || '';
+              
+              console.log('Full profile from database:', fullProfile);
+              console.log('Backend username field:', backendUsername);
+              console.log('Backend name field:', backendName);
+              console.log('Backend firstName:', backendFirstName);
+              console.log('Backend lastName:', backendLastName);
+              
+              // Priorizar username del backend, luego name, luego el del finalUser
+              const backendValue = backendUsername || backendName;
+              
+              // Verificar si el valor del backend es una combinación de firstName/lastName
+              let finalName = '';
+              if (backendValue) {
+                const constructedName = backendFirstName && backendLastName 
+                  ? `${backendFirstName} ${backendLastName}`.trim()
+                  : backendFirstName || '';
+                
+                // Si el valor del backend es igual a la combinación de firstName/lastName, no usarlo
+                if (backendValue === constructedName || backendValue === backendFirstName) {
+                  console.log('Backend username/name appears to be constructed from firstName/lastName, using fallback');
+                  finalName = finalUser.name || loginEmail.trim().split('@')[0];
+                } else {
+                  // El valor del backend es válido (es un nombre de usuario real)
+                  finalName = backendValue;
+                }
+              } else {
+                // No hay username/name del backend, usar el del finalUser como fallback
+                finalName = finalUser.name || loginEmail.trim().split('@')[0];
+              }
+              
+              console.log('Final name to use:', finalName);
+              
+              const completeUser = {
+                ...finalUser,
+                ...fullProfile,
+                // El name es el nombre de usuario (alias) que se muestra en toda la aplicación
+                name: finalName,
+                plan: (fullProfile.plan as 'Free' | 'VIP') || finalUser.plan || 'Free',
+              };
+              console.log('Complete user from database:', completeUser);
+              await updateUser(completeUser);
+              console.log('Full profile loaded from database');
+            }
+          } catch (error) {
+            console.log('Could not load full profile, using basic user data:', error);
+          }
+          
+          console.log('User saved, redirecting to profile...');
           router.replace('/profile');
         } else {
           // Solo tenemos token, crear usuario básico
-          console.log('✅ Only token received, creating basic user...');
+          console.log('Only token received, creating basic user...');
           const basicUser = {
             id: loginEmail.trim(),
             email: loginEmail.trim(),
             name: loginEmail.trim().split('@')[0],
           };
           await login(basicUser, authToken);
-          console.log('✅ User created and saved, redirecting to profile...');
+          console.log('User created and saved, redirecting to profile...');
           router.replace('/profile');
         }
       } else {
-        console.log('⚠️ No token found in response');
-        console.log('⚠️ Response structure:', Object.keys(response));
+        console.log('No token found in response');
+        console.log('Response structure:', Object.keys(response));
         Alert.alert('Error', 'No se recibió un token de autenticación. Por favor, verifica tus credenciales.');
       }
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.error('Login error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al iniciar sesión';
-      console.error('❌ Error details:', error);
+      console.error('Error details:', error);
       Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
