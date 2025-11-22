@@ -2,6 +2,7 @@
 
 Clon funcional de Spotify orientado a aprendizaje. Aplicación móvil desarrollada con React Native, Expo y TypeScript que permite registrarse, buscar y reproducir música, gestionar biblioteca (likes y playlists de usuario), y explorar podcasts. Utiliza Expo Router para la navegación y está diseñada siguiendo buenas prácticas de desarrollo móvil.
 
+
 ---
 
 ## Instalación
@@ -21,86 +22,38 @@ npx expo start
 # Habilita entradas para dispositivos físicos
 npx expo start --tunnel
 ```
-
-También puedes usar los scripts de npm:
-
-```bash
-npm start          # Inicia el servidor de desarrollo
-npm run android    # Ejecuta en Android
-npm run ios        # Ejecuta en iOS
-npm run web        # Ejecuta en web
-```
 ---
 
 ## Estructura del proyecto
 
 ```
-├── app/                              # Pantallas y navegación (Expo Router)
-│   ├── (tabs)/                       # Navegación por tabs
-│   │   ├── _layout.tsx              # Layout de tabs
-│   │   ├── index.tsx                # Tab principal
-│   │   └── explore.tsx              # Tab de exploración
-│   ├── providers/                    # Providers de contexto
-│   │   └── QueryProvider.tsx        # Provider de React Query
-│   ├── _layout.tsx                   # Layout raíz de la app
-│   ├── auth.tsx                      # Pantalla de autenticación
-│   ├── change-password.tsx           # Cambio de contraseña
-│   ├── home.tsx                      # Pantalla principal
-│   ├── index.tsx                     # Pantalla inicial
-│   ├── modal.tsx                     # Modal de ejemplo
-│   ├── now-playing.tsx               # Reproductor de música
-│   ├── profile.tsx                   # Perfil de usuario
-│   └── profile-settings.tsx          # Configuración de perfil
-├── components/                       # Componentes reutilizables
-│   ├── music/                        # Componentes del reproductor
-│   │   ├── PlayerControls.tsx        # Controles del reproductor
-│   │   ├── ProgressBar.tsx           # Barra de progreso
-│   │   ├── ScreenHeader.tsx          # Header de pantalla
-│   │   ├── SongCard.tsx              # Tarjeta de canción
-│   │   └── index.ts                  # Exportaciones
-│   ├── ui/                           # Componentes de UI base
-│   │   ├── button.tsx                # Botón
-│   │   ├── collapsible.tsx           # Componente colapsable
-│   │   ├── icon-symbol.tsx           # Iconos
-│   │   └── input.tsx                 # Input
-│   ├── external-link.tsx             # Enlace externo
-│   ├── haptic-tab.tsx                # Tab con haptic feedback
-│   ├── hello-wave.tsx                # Componente de ejemplo
-│   ├── parallax-scroll-view.tsx      # Vista con scroll parallax
-│   ├── themed-text.tsx               # Texto con tema
-│   └── themed-view.tsx               # Vista con tema
-├── config/                           # Configuración
-│   └── api.ts                        # Configuración de la API
-├── constants/                         # Constantes
-│   └── theme.ts                      # Configuración de tema
-├── contexts/                         # Contextos de React
-│   └── AuthContext.tsx               # Contexto de autenticación
-├── hooks/                            # Custom hooks
-│   ├── useAudioPlayer.ts             # Hook para reproductor de audio
-│   ├── useSongs.ts                   # Hook para gestión de canciones
-│   ├── use-color-scheme.ts           # Hook para esquema de colores
-│   └── use-theme-color.ts            # Hook para colores del tema
-├── models/                           # Modelos TypeScript
-│   ├── auth.ts                       # Modelos de autenticación
-│   ├── song.ts                       # Modelos de canciones
-│   └── user.ts                       # Modelos de usuario
-├── services/                         # Servicios para llamadas a la API
-│   ├── api.ts                        # Cliente HTTP base
-│   ├── auth.ts                       # Servicios de autenticación
-│   ├── music.ts                      # Servicios de música
-│   ├── user.ts                       # Servicios de usuario
-│   ├── ejemplo-uso.ts                # Ejemplos de uso
-│   └── README.md                     # Documentación de servicios
-├── scripts/                          # Scripts de utilidad
-│   └── reset-project.js              # Script para resetear proyecto
-├── utils/                            # Funciones auxiliares
-│   ├── date.ts                       # Utilidades de fecha
-│   └── formatTime.ts                 # Formateo de tiempo
+├── src/                              # Código fuente principal
+│   ├── app/                          # Configuración principal de la app
+│   │   ├── navigation/               # Configuración de navegación
+│   │   │   └── RootNavigator.tsx     # Navegador raíz
+│   │   └── providers/                # Providers de contexto (React Query, etc.)
+│   ├── features/                     # Características principales de la app
+│   │   ├── example/                  # Feature de ejemplo
+│   │   │   ├── api/                  # Servicios HTTP
+│   │   │   ├── components/           # Componentes específicos
+│   │   │   ├── hooks/                # Custom hooks
+│   │   │   ├── models/               # Modelos TypeScript
+│   │   │   ├── screens/              # Pantallas
+│   ├── services/                     # Servicios compartidos
+│   │   ├── http.ts                   # Cliente HTTP base
+│   │   └── env.ts                    # Configuración de entornos
+│   └── shared/                       # Recursos compartidos
+│       ├── components/               # Componentes reutilizables
+│       ├── hooks/                    # Custom hooks globales
+│       ├── theme/                    # Configuración de tema y estilos
+│       └── utils/                    # Funciones auxiliares
+├── environments/                     # Configuración de entornos
+│   ├── environment.ts                # Configuración de desarrollo
+│   └── environment.prod.ts           # Configuración de producción
 ├── assets/                           # Recursos estáticos
-│   └── images/                       # Imágenes
+├── App.tsx                           # Componente raíz de la aplicación
 ├── app.json                          # Configuración de Expo
 ├── tsconfig.json                     # Configuración de TypeScript
-├── eslint.config.js                  # Configuración de ESLint
 └── package.json                      # Dependencias y scripts
 ```
 
@@ -136,7 +89,3 @@ npm install expo-constants
 npm install --save-dev typescript @types/react @types/react-native
 npm install --save-dev @babel/core
 ```
-
-## Configuración de la API
-
-La URL del backend se configura en `app.json` en la sección `extra.apiUrl`. Para desarrollo móvil, usa la IP de tu computadora en lugar de `localhost`. Ver más detalles en `services/README.md`.
