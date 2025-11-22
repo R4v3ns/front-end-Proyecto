@@ -48,8 +48,8 @@ export class MusicService {
       
       // Si el error es 404, significa que el endpoint no existe en el backend
       if (error instanceof ApiError && error.status === 404) {
-        console.warn('⚠️ El endpoint de canciones no está implementado en el backend. Retornando array vacío.');
-        console.warn('💡 Para implementar el endpoint, agrega una ruta GET /songs en tu backend.');
+        console.warn('El endpoint de canciones no está implementado en el backend. Retornando array vacío.');
+        console.warn('Para implementar el endpoint, agrega una ruta GET /songs en tu backend.');
         return [];
       }
       
@@ -59,7 +59,7 @@ export class MusicService {
       }
       
       // Para otros errores (conexión, etc.), retornar array vacío
-      console.warn('⚠️ Error de conexión al obtener canciones. Retornando array vacío.');
+      console.warn('Error de conexión al obtener canciones. Retornando array vacío.');
       return [];
     }
   }
@@ -78,7 +78,7 @@ export class MusicService {
       
       // Si el error es 404, significa que el endpoint no existe en el backend
       if (error instanceof ApiError && error.status === 404) {
-        console.warn('⚠️ El endpoint de canciones no está implementado en el backend.');
+        console.warn('El endpoint de canciones no está implementado en el backend.');
         return null;
       }
       

@@ -68,11 +68,11 @@ export default function ProfileSettingsScreen() {
           const backendFirstName = profileData.firstName?.trim() || '';
           const backendLastName = profileData.lastName?.trim() || '';
           
-          console.log('📋 Loading profile - Backend username:', backendUsername);
-          console.log('📋 Loading profile - Backend name:', backendName);
-          console.log('📋 Loading profile - Backend firstName:', backendFirstName);
-          console.log('📋 Loading profile - Backend lastName:', backendLastName);
-          console.log('📋 Loading profile - Context name:', user.name);
+          console.log('Loading profile - Backend username:', backendUsername);
+          console.log('Loading profile - Backend name:', backendName);
+          console.log('Loading profile - Backend firstName:', backendFirstName);
+          console.log('Loading profile - Backend lastName:', backendLastName);
+          console.log('Loading profile - Context name:', user.name);
           
           // Priorizar username del backend, luego name, luego el del contexto
           const backendValue = backendUsername || backendName;
@@ -86,7 +86,7 @@ export default function ProfileSettingsScreen() {
             
             // Si el valor del backend es igual a la combinación de firstName/lastName, no usarlo
             if (backendValue === constructedName || backendValue === backendFirstName) {
-              console.log('⚠️ Backend username/name appears to be constructed from firstName/lastName, using context name or fallback');
+              console.log('Backend username/name appears to be constructed from firstName/lastName, using context name or fallback');
               // Usar el name del contexto si existe y es diferente, sino usar solo el firstName o email
               if (user.name && user.name !== constructedName && user.name !== backendFirstName) {
                 loadedUsername = user.name;
@@ -103,7 +103,7 @@ export default function ProfileSettingsScreen() {
             loadedUsername = user.name || user.email?.split('@')[0] || '';
           }
           
-          console.log('📋 Loading profile - Final username:', loadedUsername);
+          console.log('Loading profile - Final username:', loadedUsername);
           
           setUsername(loadedUsername);
           
@@ -117,12 +117,12 @@ export default function ProfileSettingsScreen() {
           const backendPhone = profileData.phone;
           const backendBirthDate = profileData.birthDate;
           
-          console.log('📋 Loading profile - Backend biography:', backendBiography);
-          console.log('📋 Loading profile - Backend phone:', backendPhone);
-          console.log('📋 Loading profile - Backend birthDate:', backendBirthDate);
-          console.log('📋 Loading profile - Context biography:', user.biography);
-          console.log('📋 Loading profile - Context phone:', user.phone);
-          console.log('📋 Loading profile - Context birthDate:', user.birthDate);
+          console.log('Loading profile - Backend biography:', backendBiography);
+          console.log('Loading profile - Backend phone:', backendPhone);
+          console.log('Loading profile - Backend birthDate:', backendBirthDate);
+          console.log('Loading profile - Context biography:', user.biography);
+          console.log('Loading profile - Context phone:', user.phone);
+          console.log('Loading profile - Context birthDate:', user.birthDate);
           
           // Usar valores del backend si son válidos, sino usar los del contexto
           setBiography(
@@ -174,7 +174,7 @@ export default function ProfileSettingsScreen() {
               bannerImage: getContextValue((profileData as any).bannerImage, user.bannerImage),
               plan: (profileData.plan as 'Free' | 'VIP') || user.plan || 'Free',
             };
-            console.log('📋 Updating user context with corrected name:', updatedUserContext);
+            console.log('Updating user context with corrected name:', updatedUserContext);
             await updateUser(updatedUserContext);
           }
         } else {
@@ -385,7 +385,7 @@ export default function ProfileSettingsScreen() {
         plan: plan || 'Free', // Incluir el plan en los datos a guardar
       };
       
-      console.log('📤 Sending profile data to backend:', {
+      console.log('Sending profile data to backend:', {
         ...profileData,
         profileImage: profileData.profileImage ? 'Image provided' : 'No image',
         username: profileData.username,
@@ -417,9 +417,9 @@ export default function ProfileSettingsScreen() {
       const backendName = backendUser.name?.trim() || '';
       const formUsername = username.trim();
       
-      console.log('📋 Backend response username:', backendUsername);
-      console.log('📋 Backend response name:', backendName);
-      console.log('📋 Form username:', formUsername);
+      console.log('Backend response username:', backendUsername);
+      console.log('Backend response name:', backendName);
+      console.log('Form username:', formUsername);
       
       // El name es el nombre de usuario (alias) que se muestra en la UI
       // NO debe ser una combinación de firstName y lastName
@@ -436,7 +436,7 @@ export default function ProfileSettingsScreen() {
         // Si el valor del backend es igual a la combinación de firstName/lastName, no usarlo
         // Usar el del formulario en su lugar
         if (backendValue === constructedName || backendValue === firstName.trim()) {
-          console.log('⚠️ Backend username/name appears to be constructed from firstName/lastName, using form username instead');
+          console.log('Backend username/name appears to be constructed from firstName/lastName, using form username instead');
           finalName = formUsername;
         } else {
           // El valor del backend es válido (es un nombre de usuario real)
@@ -447,7 +447,7 @@ export default function ProfileSettingsScreen() {
         finalName = formUsername;
       }
       
-      console.log('📋 Final name to use:', finalName);
+      console.log('Final name to use:', finalName);
       
       // Helper para obtener valor válido: priorizar backend si tiene valor válido, sino usar formulario
       const getValidValue = (backendValue: any, formValue: string): string | undefined => {
@@ -501,9 +501,9 @@ export default function ProfileSettingsScreen() {
         plan: (backendUser.plan as 'Free' | 'VIP') || plan || 'Free', // Incluir el plan desde el servidor o el estado local
       };
       
-      console.log('📋 Final updated user - biography:', updatedUser.biography);
-      console.log('📋 Final updated user - phone:', updatedUser.phone);
-      console.log('📋 Final updated user - birthDate:', updatedUser.birthDate);
+      console.log('Final updated user - biography:', updatedUser.biography);
+      console.log('Final updated user - phone:', updatedUser.phone);
+      console.log('Final updated user - birthDate:', updatedUser.birthDate);
 
       console.log('Updating user context with:', updatedUser);
       await updateUser(updatedUser);
@@ -549,7 +549,7 @@ export default function ProfileSettingsScreen() {
           errorData.message?.includes('Token expired')
         ));
       
-      console.log('🔍 Error details:', {
+      console.log('Error details:', {
         message: errorMessage,
         status: errorStatus,
         data: errorData,
@@ -789,6 +789,21 @@ export default function ProfileSettingsScreen() {
             <Ionicons name="lock-closed-outline" size={isMobile ? 18 : 20} color="#FFFFFF" />
             <ThemedText style={[styles.changePasswordNavButtonText, isMobile && styles.changePasswordNavButtonTextMobile]}>
               Cambiar contraseña
+            </ThemedText>
+            <Ionicons name="chevron-forward" size={isMobile ? 18 : 20} color="#B3B3B3" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Botón para preferencias de cuenta */}
+        <View style={styles.passwordButtonSection}>
+          <TouchableOpacity
+            style={[styles.changePasswordNavButton, isMobile && styles.changePasswordNavButtonMobile]}
+            onPress={() => router.push('/account-preferences')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="settings-outline" size={isMobile ? 18 : 20} color="#FFFFFF" />
+            <ThemedText style={[styles.changePasswordNavButtonText, isMobile && styles.changePasswordNavButtonTextMobile]}>
+              Preferencias de cuenta
             </ThemedText>
             <Ionicons name="chevron-forward" size={isMobile ? 18 : 20} color="#B3B3B3" />
           </TouchableOpacity>

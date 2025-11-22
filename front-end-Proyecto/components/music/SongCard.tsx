@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ImageStyle, TextStyle, ViewStyle, TouchableOpacity } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +19,11 @@ export default function SongCard({
   coverUrl, title, artist, coverStyle, titleStyle, artistStyle, containerStyle, onLikePress,
 }: Props) {
   const [isLiked, setIsLiked] = useState(false);
+
+  // Debug: verificar que el título se esté recibiendo
+  useEffect(() => {
+    console.log('SongCard - Title:', title, 'Artist:', artist);
+  }, [title, artist]);
 
   const handleLikePress = () => {
     setIsLiked(!isLiked);
@@ -46,12 +51,24 @@ export default function SongCard({
       <View style={styles.meta}>
         <View style={styles.titleRow}>
           <View style={styles.titleContainer}>
-            <Text numberOfLines={2} style={[styles.title, titleStyle]}>
-              {title || "Sin título"}
-            </Text>
-            <Text numberOfLines={1} style={[styles.artist, artistStyle]}>
-              {artist || "Artista desconocido"}
-            </Text>
+            {title ? (
+              <Text numberOfLines={2} style={[styles.title, titleStyle]}>
+                {title}
+              </Text>
+            ) : (
+              <Text numberOfLines={2} style={[styles.title, titleStyle, { opacity: 0.5 }]}>
+                Sin título
+              </Text>
+            )}
+            {artist ? (
+              <Text numberOfLines={1} style={[styles.artist, artistStyle]}>
+                {artist}
+              </Text>
+            ) : (
+              <Text numberOfLines={1} style={[styles.artist, artistStyle, { opacity: 0.5 }]}>
+                Artista desconocido
+              </Text>
+            )}
           </View>
           <TouchableOpacity 
             onPress={handleLikePress}
@@ -75,13 +92,14 @@ const styles = StyleSheet.create({
   container: {
     width: "100%",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
+    paddingBottom: 20,
   },
   coverContainer: {
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
+    marginBottom: 16,
     paddingHorizontal: 0,
   },
   cover: { 
@@ -106,7 +124,11 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingHorizontal: 20,
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 0,
+    marginBottom: 0,
+    paddingTop: 16,
+    paddingBottom: 16,
+    zIndex: 1,
   },
   titleRow: {
     width: "100%",
@@ -115,21 +137,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 12,
     position: "relative",
+    paddingRight: 56, // Espacio para el botón de me gusta
+    minHeight: 90,
   },
   titleContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 60,
+    minHeight: 90,
+    paddingHorizontal: 12,
+    backgroundColor: "transparent",
   },
   title: { 
-    color: "#fff", 
-    fontSize: 24, 
+    color: "#FFFFFF", 
+    fontSize: 20, 
     fontWeight: "700", 
     marginBottom: 8, 
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
     textAlign: "center",
-    lineHeight: 30,
+    lineHeight: 26,
+    width: "100%",
+    zIndex: 2,
+    backgroundColor: "transparent",
   },
   artist: { 
     color: "#b3b3b3", 
@@ -146,8 +175,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     position: "absolute",
     right: 0,
-    top: "50%",
-    marginTop: -22,
+    top: 0,
+    zIndex: 3,
   },
   likeButtonOutline: {
     borderWidth: 2,

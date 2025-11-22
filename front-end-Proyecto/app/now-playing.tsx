@@ -115,8 +115,8 @@ export default function NowPlayingScreen() {
         <View style={styles.songSection}>
           <SongCard
             coverUrl={currentSong?.coverUrl}
-            title={currentSong?.title}
-            artist={currentSong?.artist}
+            title={currentSong?.title || 'Sin título'}
+            artist={currentSong?.artist || 'Artista desconocido'}
             onLikePress={() => {
               // Aquí puedes agregar la lógica para guardar en favoritos
               console.log('Me gusta presionado para:', currentSong?.title);
@@ -171,11 +171,13 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   songSection: {
-    flex: 1,
+    flexShrink: 1,
     justifyContent: "flex-start",
     alignItems: "stretch",
     paddingTop: 0,
-    paddingBottom: 0,
+    paddingBottom: 20,
+    overflow: "visible",
+    minHeight: 400,
   },
   playerSection: {
     width: "100%",

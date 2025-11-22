@@ -31,7 +31,7 @@ export default function AuthScreen() {
   // Calcular qué pantalla mostrar: priorizar parámetros de URL sobre estado interno
   const displayScreen = useMemo((): AuthScreen => {
     const screenParam = getScreenParam();
-    console.log('🔍 Calculating display screen - screen param:', screenParam, 'Internal:', internalScreen, 'Full params:', params);
+    console.log('Calculating display screen - screen param:', screenParam, 'Internal:', internalScreen, 'Full params:', params);
     
     // Si hay un parámetro en la URL, usarlo
     if (screenParam === 'register') {
@@ -53,12 +53,12 @@ export default function AuthScreen() {
     return 'login';
   }, [params.screen, internalScreen]);
   
-  console.log('📺 Final display screen:', displayScreen);
+  console.log('Final display screen:', displayScreen);
 
   // Cuando cambian los parámetros de la URL, limpiar el estado interno
   useEffect(() => {
     const param = getScreenParam();
-    console.log('🔄 URL params changed, param:', param, 'Full params:', params);
+    console.log('URL params changed, param:', param, 'Full params:', params);
     if (param === 'register' || param === 'forgot-password' || param === 'login') {
       console.log('🧹 Clearing internal screen state because URL param exists');
       setInternalScreen(null); // Limpiar estado interno cuando hay un parámetro de URL
@@ -100,7 +100,7 @@ export default function AuthScreen() {
 
   // Handlers
   const handleLogin = async () => {
-    console.log('🔵 handleLogin called');
+    console.log('handleLogin called');
     const errors: { email?: string; password?: string } = {};
 
     if (!loginEmail.trim()) {
@@ -114,14 +114,14 @@ export default function AuthScreen() {
     }
 
     if (Object.keys(errors).length > 0) {
-      console.log('❌ Validation errors:', errors);
+      console.log('Validation errors:', errors);
       setLoginErrors(errors);
       return;
     }
 
     setLoginErrors({});
     setLoading(true);
-    console.log('🔄 Starting login process...');
+    console.log('Starting login process...');
 
     try {
       const credentials: LoginCredentials = {
@@ -129,9 +129,9 @@ export default function AuthScreen() {
         password: loginPassword,
       };
 
-      console.log('📤 Calling AuthService.login...');
+      console.log('Calling AuthService.login...');
       const response = await AuthService.login(credentials);
-      console.log('✅ Login response (full):', JSON.stringify(response, null, 2));
+      console.log('Login response (full):', JSON.stringify(response, null, 2));
       
       // Intentar obtener el token de diferentes posibles campos
       const authToken = response.token || 
@@ -146,21 +146,21 @@ export default function AuthScreen() {
                       (response as any).userData ||
                       (response as any).data;
       
-      console.log('🔍 Extracted token:', authToken ? 'Found' : 'Not found');
-      console.log('🔍 Extracted user:', userData ? 'Found' : 'Not found');
+      console.log('Extracted token:', authToken ? 'Found' : 'Not found');
+      console.log('Extracted user:', userData ? 'Found' : 'Not found');
       
       if (authToken) {
         if (userData && typeof userData === 'object' && (userData.id || userData.email)) {
           // Tenemos token y datos de usuario completos
-          console.log('✅ Token and user received, saving to context...');
+          console.log('Token and user received, saving to context...');
           // Construir el usuario inicial
           // El name es el nombre de usuario (alias), NO debe ser firstName/lastName
           const initialName = userData.name?.trim() || loginEmail.trim().split('@')[0];
           
-          console.log('📋 Login - userData.name:', userData.name);
-          console.log('📋 Login - userData.firstName:', userData.firstName);
-          console.log('📋 Login - userData.lastName:', userData.lastName);
-          console.log('📋 Login - Initial name to use:', initialName);
+          console.log('Login - userData.name:', userData.name);
+          console.log('Login - userData.firstName:', userData.firstName);
+          console.log('Login - userData.lastName:', userData.lastName);
+          console.log('Login - Initial name to use:', initialName);
           
           const finalUser = {
             id: userData.id || loginEmail.trim(),
@@ -252,12 +252,35 @@ export default function AuthScreen() {
       }
     } catch (error) {
       console.error('Login error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error al iniciar sesión';
+      let errorMessage = error instanceof Error ? error.message : 'Error al iniciar sesión';
       console.error('Error details:', error);
-      Alert.alert('Error', errorMessage);
+      
+      // Si el mensaje tiene saltos de línea, formatearlo mejor para el Alert
+      if (errorMessage.includes('\n')) {
+        // Extraer la URL intentada si está en el mensaje
+        const urlMatch = errorMessage.match(/URL intentada: (http[^\n]+)/);
+        const attemptedUrl = urlMatch ? urlMatch[1] : null;
+        
+        // Crear un mensaje más claro y conciso
+        let title = 'Error de conexión';
+        let message = 'No se pudo conectar con el servidor backend.\n\n';
+        
+        if (attemptedUrl) {
+          message += `URL: ${attemptedUrl}\n\n`;
+        }
+        
+        message += 'Verifica que:\n';
+        message += '• El servidor backend esté corriendo\n';
+        message += '• La URL y puerto sean correctos\n';
+        message += '• No haya problemas de red o firewall';
+        
+        Alert.alert(title, message);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
     } finally {
       setLoading(false);
-      console.log('🏁 Login process finished, loading set to false');
+      console.log('Login process finished, loading set to false');
     }
   };
 
@@ -412,10 +435,10 @@ export default function AuthScreen() {
           console.log('🔘 Password:', loginPassword ? 'Present' : 'Empty');
           console.log('🔘 Loading:', loading);
           if (!loading && loginEmail.trim() && loginPassword) {
-            console.log('✅ Conditions met, calling handleLogin...');
+            console.log('Conditions met, calling handleLogin...');
             handleLogin();
           } else {
-            console.log('❌ Conditions not met - cannot proceed');
+            console.log('Conditions not met - cannot proceed');
             if (!loginEmail.trim()) {
               setLoginErrors({ email: 'El email es requerido' });
             }

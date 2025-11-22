@@ -118,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await storage.setItem(USER_KEY, JSON.stringify(formattedUser));
       setToken(authToken);
       setUser(formattedUser);
-      console.log('✅ Auth data saved successfully');
+      console.log('Auth data saved successfully');
     } catch (error) {
       console.error('Error saving auth data:', error);
       throw error;
@@ -144,12 +144,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         formattedUser.birthDate = formatBirthDateFromISO(formattedUser.birthDate);
       }
       
-      console.log('💾 AuthContext.updateUser - Saving user data:', formattedUser);
+      console.log('AuthContext.updateUser - Saving user data:', formattedUser);
       setUser(formattedUser);
       await storage.setItem(USER_KEY, JSON.stringify(formattedUser));
-      console.log('✅ AuthContext.updateUser - User data saved successfully');
+      console.log('AuthContext.updateUser - User data saved successfully');
     } catch (error) {
-      console.error('❌ AuthContext.updateUser - Error updating user data:', error);
+      console.error('AuthContext.updateUser - Error updating user data:', error);
       throw error;
     }
   };

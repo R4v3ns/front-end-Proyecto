@@ -108,18 +108,18 @@ export default function ProfileScreen() {
   const getUserDisplayName = () => {
     // Solo mostrar el nombre de usuario (name), nunca firstName/lastName
     // firstName y lastName son información personal que no se muestra
-    console.log('🔍 getUserDisplayName - user.name:', user?.name);
-    console.log('🔍 getUserDisplayName - user.firstName:', user?.firstName);
-    console.log('🔍 getUserDisplayName - user.lastName:', user?.lastName);
+    console.log('getUserDisplayName - user.name:', user?.name);
+    console.log('getUserDisplayName - user.firstName:', user?.firstName);
+    console.log('getUserDisplayName - user.lastName:', user?.lastName);
     
     if (user?.name) {
       const displayName = user.name.trim();
-      console.log('🔍 getUserDisplayName - Returning:', displayName);
+      console.log('getUserDisplayName - Returning:', displayName);
       return displayName;
     }
     // Si no hay nombre de usuario, usar el email como fallback
     const fallback = user?.email?.split('@')[0] || 'Usuario';
-    console.log('🔍 getUserDisplayName - Using fallback:', fallback);
+    console.log('getUserDisplayName - Using fallback:', fallback);
     return fallback;
   };
 

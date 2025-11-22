@@ -52,11 +52,11 @@ export const useAudioPlayer = (playlist: Song[]) => {
 
   // Descargar audio cuando está pausado por mucho tiempo para evitar pitidos
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
     
     // Si no está reproduciendo y hay un sonido cargado, descargarlo después de 2 segundos
     if (!playerState.isPlaying && soundRef.current && playerState.currentSong) {
-      timeoutId = setTimeout(async () => {
+      timeoutId = setTimeout(async (): Promise<void> => {
         if (!playerStateRef.current.isPlaying && soundRef.current) {
           try {
             await soundRef.current.unloadAsync();

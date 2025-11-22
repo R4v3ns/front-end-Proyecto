@@ -47,14 +47,14 @@ export class UserService {
           : undefined,
       };
 
-      console.log('👤 UserService.updateProfile - Sending request to:', ENDPOINTS.USERS.UPDATE_PROFILE);
-      console.log('👤 UserService.updateProfile - Data:', { 
+      console.log('UserService.updateProfile - Sending request to:', ENDPOINTS.USERS.UPDATE_PROFILE);
+      console.log('UserService.updateProfile - Data:', { 
         ...dataToSend, 
         profileImage: dataToSend.profileImage ? 'Image provided' : 'No image',
         username: dataToSend.username,
         name: dataToSend.name,
       });
-      console.log('👤 UserService.updateProfile - Full data JSON:', JSON.stringify(dataToSend, null, 2));
+      console.log('UserService.updateProfile - Full data JSON:', JSON.stringify(dataToSend, null, 2));
 
       const response = await ApiClient.put<UserProfileResponse>(
         ENDPOINTS.USERS.UPDATE_PROFILE,
@@ -72,18 +72,18 @@ export class UserService {
         responseData.birthDate = formatBirthDateFromISO(responseData.birthDate);
       }
 
-      console.log('👤 UserService.updateProfile - Response:', responseData);
-      console.log('👤 UserService.updateProfile - Response username field:', responseData.username);
-      console.log('👤 UserService.updateProfile - Response name field:', responseData.name);
-      console.log('👤 UserService.updateProfile - Full response JSON:', JSON.stringify(responseData, null, 2));
+      console.log('UserService.updateProfile - Response:', responseData);
+      console.log('UserService.updateProfile - Response username field:', responseData.username);
+      console.log('UserService.updateProfile - Response name field:', responseData.name);
+      console.log('UserService.updateProfile - Full response JSON:', JSON.stringify(responseData, null, 2));
       return responseData;
     } catch (error) {
-      console.error('👤 UserService.updateProfile - Error:', error);
-      console.error('👤 UserService.updateProfile - Error type:', error instanceof ApiError ? 'ApiError' : typeof error);
+      console.error('UserService.updateProfile - Error:', error);
+      console.error('UserService.updateProfile - Error type:', error instanceof ApiError ? 'ApiError' : typeof error);
       if (error instanceof ApiError) {
-        console.error('👤 UserService.updateProfile - ApiError status:', error.status);
-        console.error('👤 UserService.updateProfile - ApiError data:', error.data);
-        console.error('👤 UserService.updateProfile - ApiError message:', error.message);
+        console.error('UserService.updateProfile - ApiError status:', error.status);
+        console.error('UserService.updateProfile - ApiError data:', error.data);
+        console.error('UserService.updateProfile - ApiError message:', error.message);
         
         // Si es un error de token expirado, asegurarse de que el mensaje lo refleje
         const isTokenExpired = error.status === 401 || 
@@ -97,7 +97,7 @@ export class UserService {
           ));
         
         if (isTokenExpired) {
-          console.warn('👤 UserService.updateProfile - Token expired detected, throwing error with clear message');
+          console.warn('UserService.updateProfile - Token expired detected, throwing error with clear message');
           throw new Error('Token expirado');
         }
         
@@ -122,7 +122,7 @@ export class UserService {
         throw new Error('No hay token de autenticación. Por favor, inicia sesión nuevamente.');
       }
 
-      console.log('👤 UserService.getProfile - Sending request to:', ENDPOINTS.USERS.PROFILE);
+      console.log('UserService.getProfile - Sending request to:', ENDPOINTS.USERS.PROFILE);
 
       const response = await ApiClient.get<UserProfileResponse>(
         ENDPOINTS.USERS.PROFILE,
@@ -139,13 +139,13 @@ export class UserService {
         responseData.birthDate = formatBirthDateFromISO(responseData.birthDate);
       }
 
-      console.log('👤 UserService.getProfile - Response:', responseData);
-      console.log('👤 UserService.getProfile - Response name field:', responseData.name);
-      console.log('👤 UserService.getProfile - Full response JSON:', JSON.stringify(responseData, null, 2));
+      console.log('UserService.getProfile - Response:', responseData);
+      console.log('UserService.getProfile - Response name field:', responseData.name);
+      console.log('UserService.getProfile - Full response JSON:', JSON.stringify(responseData, null, 2));
 
       return responseData;
     } catch (error) {
-      console.error('👤 UserService.getProfile - Error:', error);
+      console.error('UserService.getProfile - Error:', error);
       if (error instanceof ApiError) {
         const errorMessage = error.data?.error || 
                             error.data?.message || 
