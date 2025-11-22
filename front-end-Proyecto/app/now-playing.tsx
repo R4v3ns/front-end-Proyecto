@@ -50,27 +50,34 @@ export default function NowPlayingScreen() {
   }, [currentSong, songs]);
 
   // Progreso local + timer para suavizar entre eventos del player
-  const duration = playerState.duration ?? currentSong?.duration ?? 0;
-  const [positionLocal, setPositionLocal] = useState<number>(playerState.currentTime ?? 0);
+  const duration = (playerState.duration ?? currentSong?.duration ?? 0);
+  const safeDuration = isFinite(duration) && duration > 0 ? duration : 0;
+  const [positionLocal, setPositionLocal] = useState<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    setPositionLocal(playerState.currentTime ?? 0);
+    const currentTime = playerState.currentTime ?? 0;
+    if (isFinite(currentTime) && currentTime >= 0) {
+      setPositionLocal(currentTime);
+    }
   }, [playerState.currentTime, currentSong?.id]);
 
   useEffect(() => {
     const stop = () => {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     };
-    if (!playerState.isPlaying || !duration) { stop(); return; }
+    if (!playerState.isPlaying || !safeDuration) { stop(); return; }
 
     stop();
     timerRef.current = setInterval(() => {
-      setPositionLocal((p) => Math.min((p ?? 0) + 0.5, duration));
+      setPositionLocal((p) => {
+        const newPos = p + 0.5;
+        return isFinite(newPos) ? Math.min(newPos, safeDuration) : 0;
+      });
     }, 500);
 
     return stop;
-  }, [playerState.isPlaying, duration, currentSong?.id]);
+  }, [playerState.isPlaying, safeDuration, currentSong?.id]);
 
   if (isLoading) {
     return (
@@ -100,39 +107,110 @@ export default function NowPlayingScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScreenHeader 
-        title="Mi playlist n.º 1" 
+        title="Reproductor" 
         onClose={() => router.back()}
       />
 
-      <SongCard
-        coverUrl={currentSong?.coverUrl}
-        title={currentSong?.title}
-        artist={currentSong?.artist}
-      />
+      <View style={styles.content}>
+        <View style={styles.songSection}>
+          <SongCard
+            coverUrl={currentSong?.coverUrl}
+            title={currentSong?.title}
+            artist={currentSong?.artist}
+            onLikePress={() => {
+              // Aquí puedes agregar la lógica para guardar en favoritos
+              console.log('Me gusta presionado para:', currentSong?.title);
+            }}
+          />
+        </View>
 
-      <ProgressBar
-        position={positionLocal}
-        duration={duration}
-        onSeek={(sec) => { setPositionLocal(sec); seekTo?.(sec); }}
-      />
+        <View style={styles.playerSection}>
+          <ProgressBar
+            position={isFinite(positionLocal) ? positionLocal : 0}
+            duration={safeDuration}
+            onSeek={(sec) => { 
+              if (isFinite(sec) && sec >= 0 && sec <= safeDuration) {
+                setPositionLocal(sec); 
+                seekTo?.(sec); 
+              }
+            }}
+          />
 
-      <PlayerControls
-        isPlaying={playerState.isPlaying}
-        onPrev={() => (songs.length ? handlePrevious() : undefined)}
-        onNext={() => (songs.length ? handleNext() : undefined)}
-        onTogglePlayPause={togglePlayPause}
-        onShufflePress={toggleShuffle}
-        onRepeatPress={toggleRepeat}
-      />
+          <PlayerControls
+            isPlaying={playerState.isPlaying}
+            onPrev={() => {
+              if (songs.length) {
+                handlePrevious();
+              }
+            }}
+            onNext={() => {
+              if (songs.length) {
+                handleNext();
+              }
+            }}
+            onTogglePlayPause={() => {
+              togglePlayPause();
+            }}
+            onShufflePress={toggleShuffle}
+            onRepeatPress={toggleRepeat}
+          />
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#121212", paddingHorizontal: 24, paddingTop: 48 },
-  loading: { color: "#fff", marginTop: 40, textAlign: "center", fontSize: 16 },
-  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 },
-  emptyTitle: { color: "#fff", fontSize: 20, fontWeight: "700", marginBottom: 16, textAlign: "center" },
-  emptyText: { color: "#a7a7a7", fontSize: 14, textAlign: "center", lineHeight: 20 },
+  container: { 
+    flex: 1, 
+    backgroundColor: "#121212",
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+  },
+  songSection: {
+    flex: 1,
+    justifyContent: "flex-start",
+    alignItems: "stretch",
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  playerSection: {
+    width: "100%",
+    paddingBottom: 40,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+    marginTop: 32,
+    backgroundColor: "#121212",
+    position: "relative",
+    zIndex: 10,
+  },
+  loading: { 
+    color: "#fff", 
+    marginTop: 40, 
+    textAlign: "center", 
+    fontSize: 16 
+  },
+  emptyContainer: { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center", 
+    paddingHorizontal: 24 
+  },
+  emptyTitle: { 
+    color: "#fff", 
+    fontSize: 20, 
+    fontWeight: "700", 
+    marginBottom: 16, 
+    textAlign: "center" 
+  },
+  emptyText: { 
+    color: "#a7a7a7", 
+    fontSize: 14, 
+    textAlign: "center", 
+    lineHeight: 20 
+  },
 });
 

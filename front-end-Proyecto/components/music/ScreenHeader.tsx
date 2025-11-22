@@ -19,7 +19,23 @@ export default function ScreenHeader({ title, onClose, onMenu }: Props) {
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: 32, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12 },
-  headerTitle: { color: "#fff", fontSize: 14, fontWeight: "600", flex: 1, textAlign: "center", marginHorizontal: 16 },
+  header: { 
+    marginBottom: 16, 
+    flexDirection: "row", 
+    alignItems: "center", 
+    justifyContent: "space-between", 
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#282828",
+  },
+  headerTitle: { 
+    color: "#fff", 
+    fontSize: 16, 
+    fontWeight: "700", 
+    flex: 1, 
+    textAlign: "center", 
+    marginHorizontal: 16 
+  },
 });
 
