@@ -1,6 +1,7 @@
-# Frontend - Ayudantía DSM
+# Frontend - Clon Spotify DSM
 
-Este frontend forma parte del sistema de gestión para paseadores de mascotas. Está construido con **React Native**, **Expo**, **TypeScript**, y utiliza **React Navigation** para la navegación.
+Clon funcional de Spotify orientado a aprendizaje. Aplicación móvil desarrollada con React Native, Expo y TypeScript que permite registrarse, buscar y reproducir música, gestionar biblioteca (likes y playlists de usuario), y explorar podcasts. Utiliza Expo Router para la navegación y está diseñada siguiendo buenas prácticas de desarrollo móvil.
+
 
 ---
 
