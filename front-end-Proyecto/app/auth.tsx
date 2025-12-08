@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Input } from '@/components/ui/input';
@@ -266,13 +266,15 @@ export default function AuthScreen() {
         let message = 'No se pudo conectar con el servidor backend.\n\n';
         
         if (attemptedUrl) {
-          message += `URL: ${attemptedUrl}\n\n`;
+          message += `URL intentada: ${attemptedUrl}\n\n`;
         }
         
-        message += 'Verifica que:\n';
-        message += '• El servidor backend esté corriendo\n';
-        message += '• La URL y puerto sean correctos\n';
-        message += '• No haya problemas de red o firewall';
+        message += 'Para solucionarlo:\n\n';
+        message += '1. Asegúrate de que el servidor backend esté corriendo\n';
+        message += '2. Verifica que esté en el puerto 8080\n';
+        message += '3. Si estás en web, el servidor debe estar en localhost:8080\n';
+        message += '4. Si estás en móvil, actualiza la IP en app.json\n\n';
+        message += 'Para iniciar el backend, ejecuta el servidor en otra terminal.';
         
         Alert.alert(title, message);
       } else {
@@ -643,18 +645,20 @@ export default function AuthScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? (isSmallScreen ? 20 : 0) : 20}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        bounces={false}
       >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.replace('/home')}
+          activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={24} color="#F22976" />
+          <Ionicons name="arrow-back" size={isSmallScreen ? 22 : 24} color="#F22976" />
           <ThemedText style={styles.backButtonText}>Volver al menú principal</ThemedText>
         </TouchableOpacity>
         {displayScreen === 'login' && renderLogin()}
@@ -665,6 +669,9 @@ export default function AuthScreen() {
   );
 }
 
+const { width: screenWidth } = Dimensions.get('window');
+const isSmallScreen = screenWidth < 375;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -672,64 +679,70 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: isSmallScreen ? 16 : 20,
+    paddingVertical: isSmallScreen ? 16 : 20,
+    paddingBottom: isSmallScreen ? 32 : 40,
   },
   formContainer: {
     width: '100%',
     maxWidth: 360,
     alignSelf: 'center',
     backgroundColor: '#1a1a1a',
-    borderRadius: 24,
-    padding: 24,
-    paddingVertical: 28,
+    borderRadius: isSmallScreen ? 20 : 24,
+    padding: isSmallScreen ? 20 : 24,
+    paddingVertical: isSmallScreen ? 24 : 28,
   },
   title: {
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? 6 : 8,
+    fontSize: isSmallScreen ? 26 : 28,
   },
   subtitle: {
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: isSmallScreen ? 24 : 32,
     opacity: 0.7,
+    fontSize: isSmallScreen ? 14 : 16,
   },
   button: {
     marginTop: 8,
   },
   linkButton: {
-    marginTop: 16,
+    marginTop: isSmallScreen ? 12 : 16,
   },
   divider: {
-    marginTop: 32,
-    paddingTop: 24,
+    marginTop: isSmallScreen ? 24 : 32,
+    paddingTop: isSmallScreen ? 20 : 24,
     borderTopWidth: 1,
     borderTopColor: 'rgba(128, 128, 128, 0.2)',
     alignItems: 'center',
   },
   dividerText: {
-    marginBottom: 16,
+    marginBottom: isSmallScreen ? 12 : 16,
     opacity: 0.7,
+    fontSize: isSmallScreen ? 14 : 16,
   },
   secondaryButton: {
     width: '100%',
   },
   successContainer: {
-    padding: 16,
+    padding: isSmallScreen ? 12 : 16,
     borderRadius: 8,
     backgroundColor: 'rgba(52, 199, 89, 0.1)',
     marginBottom: 16,
   },
   successText: {
     textAlign: 'center',
+    fontSize: isSmallScreen ? 14 : 16,
   },
   loginButton: {
     backgroundColor: '#F22976',
-    paddingVertical: 14,
+    paddingVertical: isSmallScreen ? 16 : 14,
     paddingHorizontal: 24,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
-    marginTop: 8,
+    minHeight: isSmallScreen ? 52 : 48,
+    marginTop: isSmallScreen ? 12 : 8,
     width: '100%',
     borderWidth: 2,
     borderColor: '#FFFFFF',
@@ -739,7 +752,7 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: isSmallScreen ? 17 : 16,
     fontWeight: '600',
   },
   registerButton: {
@@ -750,14 +763,14 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    marginBottom: isSmallScreen ? 16 : 20,
+    paddingVertical: isSmallScreen ? 10 : 12,
+    paddingHorizontal: isSmallScreen ? 12 : 16,
     alignSelf: 'flex-start',
   },
   backButtonText: {
     marginLeft: 8,
-    fontSize: 16,
+    fontSize: isSmallScreen ? 15 : 16,
     color: '#F22976',
     fontWeight: '600',
   },

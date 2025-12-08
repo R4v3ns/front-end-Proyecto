@@ -109,6 +109,8 @@ export const ENDPOINTS = {
     REGISTER_PHONE: '/api/users/register/phone',
     VERIFY_EMAIL: '/api/users/verify-email',
     RESEND_EMAIL_VERIFICATION: '/api/users/resend-email-verification',
+    RESET_PASSWORD: '/api/users/reset-password',
+    FORGOT_PASSWORD: '/api/users/forgot-password',
     LOGOUT: '/api/users/logout',
   },
   // Agrega más endpoints aquí según necesites
@@ -119,8 +121,8 @@ export const ENDPOINTS = {
     CHANGE_PASSWORD: '/api/users/change-password',
   },
   MUSIC: {
-    SONGS: '/songs',
-    SONG_BY_ID: (id: number) => `/songs/${id}`,
+    SONGS: '/api/songs',
+    SONG_BY_ID: (id: number) => `/api/songs/${id}`,
   },
 } as const;
 

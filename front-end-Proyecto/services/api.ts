@@ -99,13 +99,27 @@ const getHeaders = (customHeaders?: Record<string, string>) => {
     ...customHeaders,
   };
 
-  // Aquí puedes agregar el token de autenticación si lo tienes almacenado
-  // Por ejemplo, usando AsyncStorage o SecureStore
-  // const token = await getAuthToken();
-  // if (token) {
-  //   headers.Authorization = `Bearer ${token}`;
-  // }
+  return headers;
+};
 
+/**
+ * Helper para obtener headers con token de autenticación
+ * Esta función puede ser usada en los servicios que requieren autenticación
+ * 
+ * @example
+ * const token = await getAuthToken();
+ * const headers = getAuthHeaders(token);
+ * const response = await ApiClient.get('/endpoint', { headers });
+ */
+export const getAuthHeaders = (token: string | null): Record<string, string> => {
+  const headers: Record<string, string> = {
+    ...API_CONFIG.headers,
+  };
+  
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  
   return headers;
 };
 

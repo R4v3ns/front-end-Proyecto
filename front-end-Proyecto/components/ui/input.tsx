@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TextInput, TextInputProps, StyleSheet, View, Pressable } from 'react-native';
+import { TextInput, TextInputProps, StyleSheet, View, Pressable, Dimensions } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,34 +79,37 @@ export function Input({
   );
 }
 
+const { width: screenWidth } = Dimensions.get('window');
+const isSmallScreen = screenWidth < 375;
+
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: isSmallScreen ? 14 : 16,
   },
   label: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 13 : 14,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: isSmallScreen ? 6 : 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: 8,
-    paddingHorizontal: 12,
-    minHeight: 48,
+    paddingHorizontal: isSmallScreen ? 14 : 12,
+    minHeight: isSmallScreen ? 52 : 48,
     backgroundColor: '#282828',
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    paddingVertical: 12,
+    fontSize: isSmallScreen ? 17 : 16,
+    paddingVertical: isSmallScreen ? 14 : 12,
   },
   eyeIcon: {
     padding: 4,
   },
   error: {
-    fontSize: 12,
+    fontSize: isSmallScreen ? 11 : 12,
     marginTop: 4,
   },
 });

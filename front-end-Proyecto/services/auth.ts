@@ -174,19 +174,34 @@ export class AuthService {
   }
 
   /**
-   * Solicita recuperación de contraseña (nota: el backend actual no tiene este endpoint)
-   * Por ahora redirige a reenvío de verificación de email como alternativa
+   * Solicita recuperación de contraseña
    */
   static async forgotPassword(data: ForgotPasswordData): Promise<{ message: string }> {
     try {
-      // Como el backend no tiene forgot-password, usamos resend-email-verification
-      const response = await ApiClient.post<{ message: string }>(
-        ENDPOINTS.AUTH.RESEND_EMAIL_VERIFICATION,
-        {
-          email: data.email,
+      // Intentar usar el endpoint de forgot-password si está disponible
+      // Si no está disponible, usar resend-email-verification como fallback
+      try {
+        const response = await ApiClient.post<{ message: string }>(
+          ENDPOINTS.AUTH.FORGOT_PASSWORD,
+          {
+            email: data.email,
+          }
+        );
+        return response.data || { message: 'Se ha enviado un email con las instrucciones' };
+      } catch (forgotError) {
+        // Si el endpoint no existe (404), usar el fallback
+        if (forgotError instanceof ApiError && forgotError.status === 404) {
+          console.warn('Endpoint forgot-password no disponible, usando resend-email-verification como fallback');
+          const response = await ApiClient.post<{ message: string }>(
+            ENDPOINTS.AUTH.RESEND_EMAIL_VERIFICATION,
+            {
+              email: data.email,
+            }
+          );
+          return response.data || { message: 'Se ha enviado un email con las instrucciones' };
         }
-      );
-      return response.data || { message: 'Se ha enviado un email con las instrucciones' };
+        throw forgotError;
+      }
     } catch (error) {
       if (error instanceof ApiError) {
         const errorMessage = error.data?.error || error.message || 'Error al solicitar recuperación';

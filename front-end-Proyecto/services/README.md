@@ -9,11 +9,11 @@ Este servicio proporciona una interfaz para conectarse con el backend del proyec
 Crea un archivo `.env` en la raíz del proyecto con la siguiente configuración:
 
 ```env
-EXPO_PUBLIC_API_URL=http://localhost:3000
+EXPO_PUBLIC_API_URL=http://localhost:8080
 ```
 
 **Importante para desarrollo móvil:**
-- En lugar de `localhost`, usa la IP de tu computadora (ej: `http://192.168.1.100:3000`)
+- En lugar de `localhost`, usa la IP de tu computadora (ej: `http://192.168.0.25:8080`)
 - Para encontrar tu IP:
   - Mac/Linux: `ifconfig | grep "inet " | grep -v 127.0.0.1`
   - Windows: `ipconfig`
