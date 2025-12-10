@@ -3,7 +3,6 @@ import {
   StyleSheet,
   ScrollView,
   View,
-  TextInput,
   TouchableOpacity,
   Dimensions,
   Platform,
@@ -95,15 +94,14 @@ const popularArtists = [
 
 export default function HomeScreen() {
   const { isAuthenticated, user } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
 
-  // Si el usuario está autenticado, redirigir al perfil
+  // Si el usuario está autenticado, redirigir a tabs
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/profile');
+      router.replace('/(tabs)');
     }
   }, [isAuthenticated]);
 
@@ -122,16 +120,15 @@ export default function HomeScreen() {
           )}
         </View>
         {!isMobile && (
-          <View style={styles.searchContainer}>
+          <TouchableOpacity
+            style={styles.searchContainer}
+            onPress={() => router.push('/search')}
+          >
             <Ionicons name="search" size={20} color="#B3B3B3" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="¿Qué quieres reproducir?"
-              placeholderTextColor="#B3B3B3"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+            <ThemedText style={styles.searchInput}>
+              ¿Qué quieres reproducir?
+            </ThemedText>
+          </TouchableOpacity>
         )}
         <View style={[styles.headerRight, isMobile && styles.headerRightMobile]}>
           <TouchableOpacity 
@@ -157,16 +154,15 @@ export default function HomeScreen() {
       
       {/* Barra de búsqueda móvil */}
       {isMobile && (
-        <View style={styles.searchContainerMobile}>
+        <TouchableOpacity
+          style={styles.searchContainerMobile}
+          onPress={() => router.push('/search')}
+        >
           <Ionicons name="search" size={20} color="#B3B3B3" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="¿Qué quieres reproducir?"
-            placeholderTextColor="#B3B3B3"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+          <ThemedText style={styles.searchInput}>
+            ¿Qué quieres reproducir?
+          </ThemedText>
+        </TouchableOpacity>
       )}
 
       <View style={styles.contentContainer}>
@@ -341,7 +337,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: '#B3B3B3',
   },
   headerRight: {
     flexDirection: 'row',

@@ -16,7 +16,7 @@ const getApiBaseUrl = (): string => {
     // Asegurar que en móvil no se use localhost
     if (platform !== 'web' && apiUrl.includes('localhost')) {
       console.warn('Mobile platform detected with localhost in EXPO_PUBLIC_API_URL. Replacing with local IP...');
-      apiUrl = apiUrl.replace('localhost', '192.168.0.25');
+      apiUrl = apiUrl.replace('localhost', '192.168.0.21');
       console.warn('Updated URL for mobile:', apiUrl);
     }
     
@@ -33,15 +33,15 @@ const getApiBaseUrl = (): string => {
       // Si la URL tiene localhost, reemplazarlo con IP local
       if (apiUrl.includes('localhost')) {
         console.warn('Mobile platform detected with localhost. Replacing with local IP...');
-        apiUrl = apiUrl.replace(/localhost/g, '192.168.0.25');
+        apiUrl = apiUrl.replace(/localhost/g, '192.168.0.21');
         console.warn('Updated URL for mobile:', apiUrl);
       }
       // Si la URL ya tiene una IP pero es diferente, actualizarla
       else if (apiUrl.match(/\d+\.\d+\.\d+\.\d+/)) {
         const currentIp = apiUrl.match(/\d+\.\d+\.\d+\.\d+/)?.[0];
-        if (currentIp && currentIp !== '192.168.0.25') {
-          console.warn(`Mobile platform detected with IP ${currentIp}. Updating to 192.168.0.25...`);
-          apiUrl = apiUrl.replace(currentIp, '192.168.0.25');
+        if (currentIp && currentIp !== '192.168.0.21') {
+          console.warn(`Mobile platform detected with IP ${currentIp}. Updating to 192.168.0.21...`);
+          apiUrl = apiUrl.replace(currentIp, '192.168.0.21');
           console.warn('Updated URL for mobile:', apiUrl);
         }
       }
@@ -66,14 +66,14 @@ const getApiBaseUrl = (): string => {
   // Para web, usar localhost
   const defaultUrl = platform === 'web' 
     ? 'http://localhost:8080'
-    : 'http://192.168.0.25:8080'; // IP local de tu máquina - actualiza según tu red
+    : 'http://192.168.0.21:8080'; // IP local de tu máquina - actualiza según tu red
   
   console.log('Using default API URL:', defaultUrl);
   
   if (platform === 'web') {
     console.warn('Web platform detected. Make sure your backend is running on http://localhost:8080');
   } else {
-    console.warn('Mobile platform detected. Make sure your backend is accessible at http://192.168.0.25:8080');
+    console.warn('Mobile platform detected. Make sure your backend is accessible at http://192.168.0.21:8080');
     console.warn('Tip: If connection fails, check that both devices are on the same network and update the IP in config/api.ts');
   }
   
@@ -121,8 +121,58 @@ export const ENDPOINTS = {
     CHANGE_PASSWORD: '/api/users/change-password',
   },
   MUSIC: {
-    SONGS: '/api/songs',
-    SONG_BY_ID: (id: number) => `/api/songs/${id}`,
+    SONGS: '/songs',
+    SONG_BY_ID: (id: number) => `/songs/${id}`,
+    YOUTUBE_AUDIO: (youtubeId: string) => `/api/youtube/audio/${youtubeId}`, // Endpoint para convertir YouTube a audio
+  },
+  CATALOG: {
+    // CAT-01: Explorar catálogo (ajustado al backend real)
+    FEATURED: '/songs/featured',
+    POPULAR_SONGS: '/songs/popular',
+    RECENT_SONGS: '/songs/recent',
+    POPULAR_ARTISTS: '/songs/artists/popular',
+    POPULAR_ALBUMS: '/songs/albums/popular',
+    ARTIST_DETAILS: (artistName: string) => `/songs/artist/${encodeURIComponent(artistName)}`,
+    ALBUM_DETAILS: (albumName: string, artist?: string) => {
+      const base = `/songs/album/${encodeURIComponent(albumName)}`;
+      return artist ? `${base}?artist=${encodeURIComponent(artist)}` : base;
+    },
+    // Endpoints que no existen en el backend (para futura implementación)
+    ALBUMS: '/api/albums',
+    ALBUM_BY_ID: (id: number) => `/api/albums/${id}`,
+    ARTISTS: '/api/artists',
+    ARTIST_BY_ID: (id: number) => `/api/artists/${id}`,
+    GENRES: '/api/genres',
+    GENRE_BY_ID: (id: number) => `/api/genres/${id}`,
+    NEW_RELEASES: '/api/catalog/new-releases',
+  },
+  SEARCH: {
+    // CAT-02: Búsqueda (ajustado al backend real)
+    SEARCH: '/songs/search',
+  },
+  PODCASTS: {
+    // CAT-03: Podcasts
+    PODCASTS: '/api/podcasts',
+    PODCAST_BY_ID: (id: number) => `/api/podcasts/${id}`,
+    EPISODES: '/api/podcasts/episodes',
+    EPISODE_BY_ID: (id: number) => `/api/podcasts/episodes/${id}`,
+    FOLLOW: (id: number) => `/api/podcasts/${id}/follow`,
+    UNFOLLOW: (id: number) => `/api/podcasts/${id}/unfollow`,
+    FOLLOWING: '/api/podcasts/following',
+  },
+  LIBRARY: {
+    // Biblioteca: Playlists y canciones guardadas
+    PLAYLISTS: '/api/library/playlists',
+    PLAYLIST_BY_ID: (id: number) => `/api/library/playlists/${id}`,
+    CREATE_PLAYLIST: '/api/library/playlists',
+    UPDATE_PLAYLIST: (id: number) => `/api/library/playlists/${id}`,
+    DELETE_PLAYLIST: (id: number) => `/api/library/playlists/${id}`,
+    ADD_SONG_TO_PLAYLIST: (id: number) => `/api/library/playlists/${id}/songs`,
+    REMOVE_SONG_FROM_PLAYLIST: (playlistId: number, songId: number) => 
+      `/api/library/playlists/${playlistId}/songs/${songId}`,
+    LIKED_SONGS: '/api/library/liked-songs',
+    LIKE_SONG: (songId: number) => `/api/library/liked-songs/${songId}`,
+    UNLIKE_SONG: (songId: number) => `/api/library/liked-songs/${songId}`,
   },
 } as const;
 

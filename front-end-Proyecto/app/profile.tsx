@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import {
   StyleSheet,
   ScrollView,
   View,
-  TextInput,
   TouchableOpacity,
   Dimensions,
   Platform,
@@ -95,7 +93,6 @@ const popularArtists = [
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
@@ -138,16 +135,15 @@ export default function ProfileScreen() {
           )}
         </View>
         {!isMobile && (
-          <View style={styles.searchContainer}>
+          <TouchableOpacity
+            style={styles.searchContainer}
+            onPress={() => router.push('/search')}
+          >
             <Ionicons name="search" size={20} color="#B3B3B3" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="¿Qué quieres reproducir?"
-              placeholderTextColor="#B3B3B3"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+            <ThemedText style={styles.searchInput}>
+              ¿Qué quieres reproducir?
+            </ThemedText>
+          </TouchableOpacity>
         )}
         <View style={[styles.headerRight, isMobile && styles.headerRightMobile]}>
           {/* Perfil del usuario */}
@@ -180,16 +176,15 @@ export default function ProfileScreen() {
       
       {/* Barra de búsqueda móvil */}
       {isMobile && (
-        <View style={styles.searchContainerMobile}>
+        <TouchableOpacity
+          style={styles.searchContainerMobile}
+          onPress={() => router.push('/search')}
+        >
           <Ionicons name="search" size={20} color="#B3B3B3" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="¿Qué quieres reproducir?"
-            placeholderTextColor="#B3B3B3"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+          <ThemedText style={styles.searchInput}>
+            ¿Qué quieres reproducir?
+          </ThemedText>
+        </TouchableOpacity>
       )}
 
       <View style={styles.contentContainer}>

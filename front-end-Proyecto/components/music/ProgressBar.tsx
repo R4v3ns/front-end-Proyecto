@@ -53,16 +53,16 @@ export default function ProgressBar({ position, duration, onSeek }: Props) {
 
 const styles = StyleSheet.create({
   container: { 
-    marginBottom: 24,
-    paddingVertical: 4,
+    marginBottom: 16, // Reducido de 24 a 16
+    paddingVertical: 2, // Reducido de 4 a 2
     width: "100%",
   },
   progressBarContainer: { 
     width: "100%", 
-    height: 40, 
+    height: 32, // Reducido de 40 a 32
     justifyContent: "center", 
-    marginBottom: 8,
-    paddingVertical: 12,
+    marginBottom: 6, // Reducido de 8 a 6
+    paddingVertical: 8, // Reducido de 12 a 8
   },
   progressBarBackground: { 
     width: "100%", 

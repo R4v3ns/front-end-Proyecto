@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Audio } from 'expo-av';
 import { Song, PlayerState } from '@/models/song';
+import { API_BASE_URL, ENDPOINTS } from '@/config/api';
 
 export const useAudioPlayer = (playlist: Song[]) => {
   const [playerState, setPlayerState] = useState<PlayerState>({
@@ -13,6 +14,7 @@ export const useAudioPlayer = (playlist: Song[]) => {
     repeatMode: 'off',
     playlist: [],
     currentIndex: -1,
+    isLoading: false,
   });
 
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -126,10 +128,40 @@ export const useAudioPlayer = (playlist: Song[]) => {
     }
   };
 
+  // Función para convertir URL de YouTube a audio directo
+  const getYouTubeAudioUrl = (youtubeUrl: string, youtubeId?: string): string => {
+    // Extraer ID de YouTube de la URL si no se proporciona
+    const videoId = youtubeId || youtubeUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
+    
+    if (!videoId) {
+      console.error('No se pudo extraer el ID de YouTube');
+      return youtubeUrl;
+    }
+
+    // Usar un servicio público para convertir YouTube a audio
+    // Nota: Estos servicios pueden tener limitaciones. En producción, usa tu propio backend.
+    // Opción 1: Usar yt-dlp-server o similar en tu backend
+    // Opción 2: Usar un servicio público (puede no ser confiable)
+    // Por ahora, usamos el ID para construir una URL que el backend puede procesar
+    return `https://www.youtube.com/watch?v=${videoId}`;
+  };
+
   // Cargar y reproducir canción
   const loadAndPlaySong = async (song: Song, index: number) => {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
+
+    // ACTUALIZAR ESTADO INMEDIATAMENTE - Esto hace que la UI se actualice al instante
+    setPlayerState(prev => ({
+      ...prev,
+      currentSong: song,
+      currentIndex: index,
+      isLoading: true,
+      isPlaying: false, // Pausar hasta que el audio esté listo
+    }));
+
+    // Detectar si es una URL de YouTube (fuera del try para usarlo en el catch)
+    const isYouTube = song.audioUrl.includes('youtube.com') || song.audioUrl.includes('youtu.be') || !!song.youtubeId;
 
     try {
       // Descargar sonido anterior
@@ -137,10 +169,83 @@ export const useAudioPlayer = (playlist: Song[]) => {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
       }
+      
+      let audioUri = song.audioUrl;
+      
+      if (isYouTube) {
+        const youtubeId = song.youtubeId || song.audioUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
+        
+        if (youtubeId) {
+          console.log('🎵 YouTube detectado, extrayendo audio...');
+          console.log('   - YouTube ID extraído:', youtubeId);
+          console.log('   - YouTube ID de la canción:', song.youtubeId);
+          
+          // SIEMPRE usar el youtubeId de la canción si está disponible (es más confiable)
+          // Solo usar el extraído de la URL como fallback
+          const finalYoutubeId = song.youtubeId || youtubeId;
+          
+          // Verificar que el youtubeId extraído coincida con el de la canción
+          if (song.youtubeId && youtubeId && youtubeId !== song.youtubeId) {
+            console.warn('⚠️ ADVERTENCIA: El YouTube ID extraído de la URL no coincide con el de la canción!');
+            console.warn('   - ID de la canción (usado):', song.youtubeId);
+            console.warn('   - ID extraído de URL (ignorado):', youtubeId);
+          }
+          
+          try {
+            // Primero hacer una petición al endpoint para obtener la URL del audio convertido
+            const endpointUrl = `${API_BASE_URL}${ENDPOINTS.MUSIC.YOUTUBE_AUDIO(finalYoutubeId)}`;
+            
+            // Hacer petición HTTP GET al endpoint (timeout más corto para respuesta más rápida)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+            
+            try {
+              const response = await fetch(endpointUrl, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                signal: controller.signal,
+              });
+              
+              clearTimeout(timeoutId);
+
+              if (!response.ok) {
+                throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
+              }
+
+              const data = await response.json();
+              
+              if (data.ok && data.audioUrl) {
+                audioUri = data.audioUrl;
+              } else {
+                throw new Error(data.error || 'No se pudo obtener la URL del audio');
+              }
+            } catch (fetchError: any) {
+              clearTimeout(timeoutId);
+              if (fetchError.name === 'AbortError') {
+                throw new Error('Timeout: El servidor tardó demasiado en responder');
+              }
+              throw fetchError;
+            }
+          } catch (error: any) {
+            console.error('❌ Error al obtener URL de audio del backend:', error.message);
+            throw new Error(`No se pudo obtener el audio: ${error.message}`);
+          }
+        } else {
+          console.error('❌ No se pudo extraer el YouTube ID de la URL:', song.audioUrl);
+          throw new Error('YouTube ID no válido');
+        }
+      }
+
+      // Validar que la URI sea válida antes de intentar cargar
+      if (!audioUri || (!audioUri.startsWith('http://') && !audioUri.startsWith('https://'))) {
+        throw new Error('URL de audio inválida');
+      }
 
       // Crear nuevo sonido
       const { sound } = await Audio.Sound.createAsync(
-        { uri: song.audioUrl },
+        { uri: audioUri },
         { shouldPlay: true, volume: playerStateRef.current.volume },
         onPlaybackStatusUpdate
       );
@@ -152,12 +257,20 @@ export const useAudioPlayer = (playlist: Song[]) => {
         currentIndex: index,
         isPlaying: true,
         currentTime: 0,
+        isLoading: false, // Audio cargado y reproduciendo
       }));
 
       // Guardar en localStorage
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error cargando canción:', error);
-      setPlayerState(prev => ({ ...prev, isPlaying: false }));
+      
+      setPlayerState(prev => ({ 
+        ...prev, 
+        isPlaying: false,
+        currentSong: song, // Mantener la canción seleccionada aunque no se pueda reproducir
+        currentIndex: index,
+        isLoading: false, // Error, dejar de mostrar loading
+      }));
     } finally {
       isLoadingRef.current = false;
     }
@@ -294,7 +407,17 @@ export const useAudioPlayer = (playlist: Song[]) => {
     const currentPlaylist = playlistRef.current;
     const index = currentPlaylist.findIndex(s => s.id === song.id);
     if (index !== -1) {
-      await loadAndPlaySong(song, index);
+      // Cargar en segundo plano sin bloquear
+      loadAndPlaySong(song, index).catch(error => {
+        console.error('Error al reproducir canción:', error);
+      });
+    } else {
+      // Si no está en la playlist, agregarla temporalmente
+      const tempIndex = currentPlaylist.length;
+      playlistRef.current = [...currentPlaylist, song];
+      loadAndPlaySong(song, tempIndex).catch(error => {
+        console.error('Error al reproducir canción:', error);
+      });
     }
   };
 

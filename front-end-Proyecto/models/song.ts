@@ -5,8 +5,9 @@ export interface Song {
   duration: number; // en segundos
   coverUrl: string;
   audioUrl: string;
-  createdAt: string;
-  updatedAt: string;
+  youtubeId?: string; // ID de YouTube si la canción viene de YouTube
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SongsResponse {
@@ -29,5 +30,6 @@ export interface PlayerState {
   repeatMode: 'off' | 'all' | 'one';
   playlist: Song[];
   currentIndex: number;
+  isLoading: boolean; // Estado de carga del audio
 }
 

@@ -231,8 +231,8 @@ export default function AuthScreen() {
             console.log('Could not load full profile, using basic user data:', error);
           }
           
-          console.log('User saved, redirecting to profile...');
-          router.replace('/profile');
+          console.log('User saved, redirecting to tabs...');
+          router.replace('/(tabs)');
         } else {
           // Solo tenemos token, crear usuario básico
           console.log('Only token received, creating basic user...');
@@ -242,8 +242,8 @@ export default function AuthScreen() {
             name: loginEmail.trim().split('@')[0],
           };
           await login(basicUser, authToken);
-          console.log('User created and saved, redirecting to profile...');
-          router.replace('/profile');
+          console.log('User created and saved, redirecting to tabs...');
+          router.replace('/(tabs)');
         }
       } else {
         console.log('No token found in response');

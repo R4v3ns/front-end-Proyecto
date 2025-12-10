@@ -28,7 +28,7 @@ export default function PlayerControls({
           style={styles.controlButton}
           activeOpacity={0.6}
         >
-          <Ionicons name="play-skip-back" size={40} color="#fff" />
+          <Ionicons name="play-skip-back" size={32} color="#fff" />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -38,9 +38,9 @@ export default function PlayerControls({
         >
           <Ionicons 
             name={isPlaying ? "pause" : "play"} 
-            size={36} 
+            size={30} 
             color="#000" 
-            style={isPlaying ? {} : { marginLeft: 4 }} 
+            style={isPlaying ? {} : { marginLeft: 3 }} 
           />
         </TouchableOpacity>
 
@@ -50,7 +50,7 @@ export default function PlayerControls({
           style={styles.controlButton}
           activeOpacity={0.6}
         >
-          <Ionicons name="play-skip-forward" size={40} color="#fff" />
+          <Ionicons name="play-skip-forward" size={32} color="#fff" />
         </TouchableOpacity>
       </View>
       
@@ -60,7 +60,7 @@ export default function PlayerControls({
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           style={styles.secondaryButton}
         >
-          <Ionicons name="shuffle" size={24} color="#b3b3b3" />
+          <Ionicons name="shuffle" size={20} color="#b3b3b3" />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -68,7 +68,7 @@ export default function PlayerControls({
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           style={styles.secondaryButton}
         >
-          <Ionicons name="repeat" size={24} color="#b3b3b3" />
+          <Ionicons name="repeat" size={20} color="#b3b3b3" />
         </TouchableOpacity>
       </View>
     </View>
@@ -86,45 +86,45 @@ const styles = StyleSheet.create({
     alignItems: "center", 
     justifyContent: "center",
     paddingHorizontal: 12,
-    paddingVertical: 16,
-    gap: 32,
+    paddingVertical: 12, // Reducido de 16 a 12
+    gap: 24, // Reducido de 32 a 24
     width: "100%",
   },
   controlButton: {
-    padding: 8,
-    width: 48,
-    height: 48,
+    padding: 6, // Reducido de 8 a 6
+    width: 40, // Reducido de 48 a 40
+    height: 40, // Reducido de 48 a 40
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "transparent",
   },
   playBtn: {
-    width: 76, 
-    height: 76, 
-    borderRadius: 38, 
+    width: 64, // Reducido de 76 a 64
+    height: 64, // Reducido de 76 a 64
+    borderRadius: 32, // Reducido de 38 a 32
     backgroundColor: "#F22976",
     alignItems: "center", 
     justifyContent: "center",
     shadowColor: "#F22976",
-    shadowOffset: { width: 0, height: 6 }, 
-    shadowOpacity: 0.6, 
-    shadowRadius: 14, 
-    elevation: 12,
-    marginHorizontal: 10,
+    shadowOffset: { width: 0, height: 4 }, // Reducido de 6 a 4
+    shadowOpacity: 0.5, // Reducido de 0.6 a 0.5
+    shadowRadius: 10, // Reducido de 14 a 10
+    elevation: 10, // Reducido de 12 a 10
+    marginHorizontal: 8, // Reducido de 10 a 8
   },
   secondaryControls: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 48,
-    paddingTop: 8,
-    paddingBottom: 4,
+    gap: 40, // Reducido de 48 a 40
+    paddingTop: 6, // Reducido de 8 a 6
+    paddingBottom: 2, // Reducido de 4 a 2
     width: "100%",
   },
   secondaryButton: {
-    padding: 10,
-    width: 40,
-    height: 40,
+    padding: 8, // Reducido de 10 a 8
+    width: 36, // Reducido de 40 a 36
+    height: 36, // Reducido de 40 a 36
     justifyContent: "center",
     alignItems: "center",
   },
