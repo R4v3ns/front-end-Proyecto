@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, ScrollView, View, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePreferences } from '@/contexts/PreferencesContext';
 
 const { width } = Dimensions.get('window');
 const isMobile = width < 768;
@@ -16,6 +17,56 @@ export default function ProfileTabScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
+  
+  // Crear estilos dinámicos que se actualicen con el tema
+  const { currentTheme } = usePreferences();
+  const isDark = currentTheme === 'dark';
+  const borderColor = useThemeColor({ light: '#CC7AF240', dark: '#333333' }, 'background');
+  const optionBg = isDark ? '#000000' : useThemeColor({}, 'background'); // Negro en dark, fondo del tema en light
+  const optionBorder = useThemeColor({ light: '#CC7AF280', dark: '#333333' }, 'background');
+  const userEmailColor = useThemeColor({ light: '#666666', dark: '#B3B3B3' }, 'text');
+  
+  const dynamicStyles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      paddingTop: Platform.OS === 'ios' ? 50 : 12,
+      borderBottomWidth: 1,
+      borderBottomColor: borderColor,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: textColor,
+      flex: 1,
+    },
+    userName: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: textColor,
+      marginBottom: 4,
+    },
+    userEmail: {
+      fontSize: 14,
+      color: userEmailColor,
+    },
+    optionText: {
+      flex: 1,
+      fontSize: 16,
+      color: textColor,
+    },
+    optionItem: {
+      backgroundColor: optionBg,
+      borderColor: optionBorder,
+    },
+  }), [backgroundColor, textColor, borderColor, optionBg, optionBorder, userEmailColor, isDark]);
 
   const handleLogout = async () => {
     await logout();
@@ -30,14 +81,14 @@ export default function ProfileTabScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: '#121212' }]}>
+    <ThemedView style={dynamicStyles.container}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: '#121212' }]}>
-        <ThemedText style={styles.headerTitle}>Perfil</ThemedText>
+      <ThemedView style={dynamicStyles.header}>
+        <ThemedText style={dynamicStyles.headerTitle}>Perfil</ThemedText>
         <TouchableOpacity onPress={() => router.push('/profile-settings')}>
           <Ionicons name="settings-outline" size={24} color={textColor} />
         </TouchableOpacity>
-      </View>
+      </ThemedView>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Información del usuario */}
@@ -57,7 +108,7 @@ export default function ProfileTabScreen() {
               </View>
             )}
           </View>
-          <ThemedText style={styles.userName}>{getUserDisplayName()}</ThemedText>
+            <ThemedText style={dynamicStyles.userName}>{getUserDisplayName()}</ThemedText>
           {user?.email && (
             <ThemedText style={styles.userEmail}>{user.email}</ThemedText>
           )}
@@ -66,35 +117,35 @@ export default function ProfileTabScreen() {
         {/* Opciones */}
         <View style={styles.optionsSection}>
           <TouchableOpacity
-            style={styles.optionItem}
+            style={[styles.optionItem, dynamicStyles.optionItem]}
             onPress={() => router.push('/profile-settings')}
           >
             <Ionicons name="person-outline" size={24} color={textColor} />
-            <ThemedText style={styles.optionText}>Editar perfil</ThemedText>
-            <Ionicons name="chevron-forward" size={20} color="#B3B3B3" />
+            <ThemedText style={dynamicStyles.optionText}>Editar perfil</ThemedText>
+            <Ionicons name="chevron-forward" size={20} color={userEmailColor} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.optionItem}
+            style={[styles.optionItem, dynamicStyles.optionItem]}
             onPress={() => router.push('/change-password')}
           >
             <Ionicons name="lock-closed-outline" size={24} color={textColor} />
-            <ThemedText style={styles.optionText}>Cambiar contraseña</ThemedText>
-            <Ionicons name="chevron-forward" size={20} color="#B3B3B3" />
+            <ThemedText style={dynamicStyles.optionText}>Cambiar contraseña</ThemedText>
+            <Ionicons name="chevron-forward" size={20} color={userEmailColor} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.optionItem}
+            style={[styles.optionItem, dynamicStyles.optionItem]}
             onPress={() => router.push('/account-preferences')}
           >
             <Ionicons name="settings-outline" size={24} color={textColor} />
-            <ThemedText style={styles.optionText}>Preferencias</ThemedText>
-            <Ionicons name="chevron-forward" size={20} color="#B3B3B3" />
+            <ThemedText style={dynamicStyles.optionText}>Preferencias</ThemedText>
+            <Ionicons name="chevron-forward" size={20} color={userEmailColor} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.optionItem} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color="#FF4444" />
-            <ThemedText style={[styles.optionText, styles.logoutText]}>Cerrar sesión</ThemedText>
+          <TouchableOpacity style={[styles.optionItem, dynamicStyles.optionItem]} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={24} color="#F22976" />
+            <ThemedText style={[styles.optionText, dynamicStyles.optionText, styles.logoutText]}>Cerrar sesión</ThemedText>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -105,7 +156,7 @@ export default function ProfileTabScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#FFFFFF', // Fondo blanco
   },
   header: {
     flexDirection: 'row',
@@ -115,12 +166,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingTop: Platform.OS === 'ios' ? 50 : 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#282828',
+    borderBottomColor: '#CC7AF240', // Borde púrpura claro sutil
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     flex: 1,
   },
   scrollView: {
@@ -141,7 +192,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#282828',
+    backgroundColor: '#CC7AF215', // Fondo púrpura claro muy sutil
   },
   avatarPlaceholder: {
     justifyContent: 'center',
@@ -156,12 +207,12 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: '#666666', // Gris oscuro
   },
   optionsSection: {
     marginTop: 16,
@@ -170,18 +221,20 @@ const styles = StyleSheet.create({
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    // backgroundColor se aplica dinámicamente
     borderRadius: 8,
     padding: 16,
     gap: 12,
+    borderWidth: 1,
+    // borderColor se aplica dinámicamente
   },
   optionText: {
     flex: 1,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
   },
   logoutText: {
-    color: '#FF4444',
+    color: '#F22976', // Rosa para logout
   },
 });
 

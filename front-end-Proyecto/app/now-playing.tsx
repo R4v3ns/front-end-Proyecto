@@ -12,6 +12,8 @@ import ScreenHeader from "@/components/music/ScreenHeader";
 import { usePlaylists, useAddSongToPlaylist, useLikeSong, useUnlikeSong, useLikedSongs } from "@/hooks/useLibrary";
 import { exampleSongs } from "@/data/exampleSongs";
 import { useAuth } from '@/contexts/AuthContext';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { usePreferences } from '@/contexts/PreferencesContext';
 
 export default function NowPlayingScreen() {
   const router = useRouter();
@@ -25,6 +27,13 @@ export default function NowPlayingScreen() {
   const { songs: likedSongs } = useLikedSongs();
   const { isAuthenticated } = useAuth();
   
+  // Colores dinámicos del tema
+  const { currentTheme } = usePreferences();
+  const isDark = currentTheme === 'dark';
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const borderColor = useThemeColor({ light: '#CC7AF240', dark: '#333333' }, 'background');
+  
   const {
     playerState,
     playSong,
@@ -35,6 +44,88 @@ export default function NowPlayingScreen() {
     toggleShuffle,
     toggleRepeat,
   } = usePlayer();
+  
+  // Crear estilos dinámicos que se actualicen con el tema
+  const dynamicStyles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor,
+    },
+    playerSection: {
+      backgroundColor,
+      borderTopColor: borderColor,
+    },
+    loading: {
+      color: textColor,
+    },
+    loadingOverlay: {
+      backgroundColor: isDark ? 'rgba(18, 18, 18, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+    },
+    loadingText: {
+      color: textColor,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 24,
+    },
+    emptyTitle: {
+      color: textColor,
+      fontSize: 20,
+      fontWeight: "700",
+      marginBottom: 16,
+      textAlign: "center",
+    },
+    emptyText: {
+      color: isDark ? '#B3B3B3' : '#666666',
+      fontSize: 14,
+      textAlign: "center",
+      lineHeight: 20,
+    },
+    modalContent: {
+      backgroundColor,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '80%',
+      paddingBottom: 40,
+      borderWidth: 1,
+      borderColor: isDark ? '#333333' : '#CC7AF280',
+    },
+    modalHeader: {
+      borderBottomColor: borderColor,
+    },
+    modalTitle: {
+      color: textColor,
+    },
+    modalPlaylistItem: {
+      borderBottomColor: borderColor,
+    },
+    modalPlaylistName: {
+      color: textColor,
+    },
+    modalPlaylistCount: {
+      color: isDark ? '#B3B3B3' : '#666666',
+    },
+    modalEmptyText: {
+      color: isDark ? '#B3B3B3' : '#666666',
+    },
+    modalCloseButton: {
+      // El color del icono se aplica dinámicamente
+    },
+    modalPlaylistInfo: {
+      // Estilos para el contenedor de información de playlist
+    },
+    modalPlaylistText: {
+      // Estilos para el contenedor de texto de playlist
+    },
+    createPlaylistButton: {
+      backgroundColor: '#F22976', // Mantener rosa para el botón
+    },
+    createPlaylistButtonText: {
+      color: '#FFFFFF', // Mantener blanco para el texto del botón
+    },
+  }), [backgroundColor, textColor, borderColor, isDark]);
   
   // Obtener la playlist del estado del reproductor
   const songs = playerState.playlist || [];
@@ -184,22 +275,22 @@ export default function NowPlayingScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.loading}>Cargando playlist…</Text>
+      <SafeAreaView style={[styles.container, dynamicStyles.container]}>
+        <Text style={[styles.loading, dynamicStyles.loading]}>Cargando playlist…</Text>
       </SafeAreaView>
     );
   }
 
   if (!songs?.length) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, dynamicStyles.container]}>
         <ScreenHeader 
           title="Mi playlist n.º 1" 
           onClose={() => router.back()}
         />
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>No hay canciones disponibles</Text>
-          <Text style={styles.emptyText}>
+        <View style={[styles.emptyContainer, dynamicStyles.emptyContainer]}>
+          <Text style={[styles.emptyTitle, dynamicStyles.emptyTitle]}>No hay canciones disponibles</Text>
+          <Text style={[styles.emptyText, dynamicStyles.emptyText]}>
             No hay canciones disponibles en esta playlist.
           </Text>
         </View>
@@ -217,9 +308,9 @@ export default function NowPlayingScreen() {
       <View style={styles.content}>
         <View style={styles.songSection}>
           {playerState.isLoading && (
-            <View style={styles.loadingOverlay}>
+            <View style={[styles.loadingOverlay, dynamicStyles.loadingOverlay]}>
               <ActivityIndicator size="large" color="#F22976" />
-              <Text style={styles.loadingText}>Cargando audio...</Text>
+              <Text style={[styles.loadingText, dynamicStyles.loadingText]}>Cargando audio...</Text>
             </View>
           )}
           <SongCard
@@ -346,7 +437,7 @@ export default function NowPlayingScreen() {
           />
         </View>
 
-        <View style={styles.playerSection}>
+        <View style={[styles.playerSection, dynamicStyles.playerSection]}>
           <ProgressBar
             position={isFinite(positionLocal) ? positionLocal : 0}
             duration={safeDuration}
@@ -390,13 +481,13 @@ export default function NowPlayingScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Agregar a playlist</Text>
+            <View style={[styles.modalHeader, dynamicStyles.modalHeader]}>
+              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>Agregar a playlist</Text>
               <TouchableOpacity
                 onPress={() => setShowPlaylistModal(false)}
                 style={styles.modalCloseButton}
               >
-                <Ionicons name="close" size={24} color="#FFFFFF" />
+                <Ionicons name="close" size={24} color={textColor} />
               </TouchableOpacity>
             </View>
 
@@ -406,8 +497,8 @@ export default function NowPlayingScreen() {
               </View>
             ) : playlists.length === 0 ? (
               <View style={styles.modalEmpty}>
-                <Ionicons name="musical-notes-outline" size={64} color="#4d4d4d" />
-                <Text style={styles.modalEmptyText}>No tienes playlists</Text>
+                <Ionicons name="musical-notes-outline" size={64} color={isDark ? '#B3B3B3' : '#666666'} />
+                <Text style={[styles.modalEmptyText, dynamicStyles.modalEmptyText]}>No tienes playlists</Text>
                 <TouchableOpacity
                   style={styles.createPlaylistButton}
                   onPress={() => {
@@ -423,15 +514,15 @@ export default function NowPlayingScreen() {
                 {playlists.map((playlist) => (
                   <TouchableOpacity
                     key={playlist.id}
-                    style={styles.modalPlaylistItem}
+                    style={[styles.modalPlaylistItem, dynamicStyles.modalPlaylistItem]}
                     onPress={() => handleAddToPlaylist(playlist.id)}
                     disabled={addSongToPlaylist.isPending}
                   >
                     <View style={styles.modalPlaylistInfo}>
                       <Ionicons name="musical-notes" size={24} color="#F22976" />
                       <View style={styles.modalPlaylistText}>
-                        <Text style={styles.modalPlaylistName}>{playlist.name}</Text>
-                        <Text style={styles.modalPlaylistCount}>
+                        <Text style={[styles.modalPlaylistName, dynamicStyles.modalPlaylistName]}>{playlist.name}</Text>
+                        <Text style={[styles.modalPlaylistCount, dynamicStyles.modalPlaylistCount]}>
                           {playlist.songCount || 0} canciones
                         </Text>
                       </View>
@@ -451,9 +542,9 @@ export default function NowPlayingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: "#121212",
+  container: {
+    flex: 1,
+    // backgroundColor se aplica dinámicamente
   },
   content: {
     flex: 1,
@@ -476,14 +567,14 @@ const styles = StyleSheet.create({
     paddingTop: 8, // Reducido aún más
     paddingHorizontal: 20,
     marginTop: 0, // Eliminado para subir más los controles
-    backgroundColor: "#121212",
+    // backgroundColor se aplica dinámicamente
     position: "relative",
     zIndex: 10,
     borderTopWidth: 1,
-    borderTopColor: "#282828",
+    // borderTopColor se aplica dinámicamente
   },
   loading: { 
-    color: "#fff", 
+    // color se aplica dinámicamente
     marginTop: 40, 
     textAlign: "center", 
     fontSize: 16 
@@ -494,7 +585,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(18, 18, 18, 0.8)',
+    // backgroundColor se aplica dinámicamente
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 100,
@@ -502,7 +593,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
     fontSize: 14,
     fontWeight: '600',
   },
@@ -513,14 +604,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24 
   },
   emptyTitle: { 
-    color: "#fff", 
+    // color se aplica dinámicamente
     fontSize: 20, 
     fontWeight: "700", 
     marginBottom: 16, 
     textAlign: "center" 
   },
   emptyText: { 
-    color: "#a7a7a7", 
+    // color se aplica dinámicamente
     fontSize: 14, 
     textAlign: "center", 
     lineHeight: 20 
@@ -531,11 +622,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#121212',
+    // backgroundColor y borderColor se aplican dinámicamente
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '80%',
     paddingBottom: 40,
+    borderWidth: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -543,12 +635,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#282828',
+    borderBottomColor: '#CC7AF240', // Borde púrpura claro sutil
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
   },
   modalCloseButton: {
     width: 32,
@@ -566,7 +658,7 @@ const styles = StyleSheet.create({
   },
   modalEmptyText: {
     fontSize: 16,
-    color: '#B3B3B3',
+    // color se aplica dinámicamente
     marginTop: 16,
     marginBottom: 24,
   },
@@ -590,7 +682,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#282828',
+    borderBottomColor: '#CC7AF240', // Borde púrpura claro sutil
   },
   modalPlaylistInfo: {
     flexDirection: 'row',
@@ -604,12 +696,12 @@ const styles = StyleSheet.create({
   modalPlaylistName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
     marginBottom: 4,
   },
   modalPlaylistCount: {
     fontSize: 14,
-    color: '#B3B3B3',
+    // color se aplica dinámicamente
   },
 });
 

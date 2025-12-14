@@ -210,13 +210,16 @@ export class LibraryService {
   /**
    * Agregar canción a una playlist
    */
-  static async addSongToPlaylist(playlistId: number, songId: number): Promise<boolean> {
+  static async addSongToPlaylist(playlistId: number | string, songId: number): Promise<boolean> {
     try {
       const token = await getAuthToken();
       const headers = getAuthHeaders(token);
       
+      // Convertir playlistId a string si es necesario (el backend espera UUID como string)
+      const playlistIdStr = String(playlistId);
+      
       const response = await ApiClient.post(
-        ENDPOINTS.LIBRARY.ADD_SONG_TO_PLAYLIST(playlistId),
+        ENDPOINTS.LIBRARY.ADD_SONG_TO_PLAYLIST(playlistIdStr as any),
         { songId },
         { headers }
       );

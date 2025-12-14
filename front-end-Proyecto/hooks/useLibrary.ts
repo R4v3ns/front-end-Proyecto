@@ -130,7 +130,7 @@ export const useAddSongToPlaylist = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ playlistId, songId }: { playlistId: number; songId: number }) =>
+    mutationFn: ({ playlistId, songId }: { playlistId: number | string; songId: number }) =>
       LibraryService.addSongToPlaylist(playlistId, songId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['playlists'] });

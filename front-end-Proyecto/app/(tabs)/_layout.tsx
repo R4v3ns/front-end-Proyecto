@@ -6,6 +6,9 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { usePreferences } from '@/contexts/PreferencesContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
@@ -13,17 +16,21 @@ const isMobile = width < 768;
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { currentTheme } = usePreferences();
+  const { t } = useTranslation();
+  const backgroundColor = useThemeColor({}, 'background');
+  const borderColor = useThemeColor({ light: '#E0E0E0', dark: '#282828' }, 'background');
 
   return (
     <Tabs
       screenOptions={({ route }) => ({
-        tabBarActiveTintColor: '#F22976',
-        tabBarInactiveTintColor: '#B3B3B3',
+        tabBarActiveTintColor: '#F22976', // Rosa para tabs activos
+        tabBarInactiveTintColor: currentTheme === 'dark' ? '#B3B3B3' : '#000000', // Gris claro en dark, negro en light
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: isMobile ? {
-          backgroundColor: '#121212',
-          borderTopColor: '#282828',
+          backgroundColor, // Fondo dinámico según el tema
+          borderTopColor: borderColor, // Borde dinámico
           borderTopWidth: 1,
           height: 65,
           paddingBottom: Platform.OS === 'ios' ? 10 : 8,
@@ -33,9 +40,9 @@ export default function TabLayout() {
           left: 0,
           right: 0,
           elevation: 8,
-          shadowColor: '#000',
+          shadowColor: '#7129F2',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.3,
+          shadowOpacity: 0.1,
           shadowRadius: 4,
         } : { display: 'none' },
         tabBarLabelStyle: {
@@ -54,7 +61,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
+          title: t('nav.home'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
               name={focused ? 'home' : 'home-outline'} 
@@ -67,7 +74,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="library"
         options={{
-          title: 'Biblioteca',
+          title: t('nav.library'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
               name={focused ? 'library' : 'library-outline'} 
@@ -80,7 +87,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Perfil',
+          title: t('nav.profile'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
               name={focused ? 'person' : 'person-outline'} 
@@ -93,7 +100,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
+          title: t('nav.explore'),
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
           href: null, // Ocultar de la barra de tabs pero mantener la ruta disponible
         }}

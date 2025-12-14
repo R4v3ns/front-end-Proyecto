@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFeatured, usePopular } from '@/hooks/useCatalog';
 import { usePodcasts } from '@/hooks/usePodcasts';
+import { useTranslation } from '@/hooks/useTranslation';
 import { exampleSongs } from '@/data/exampleSongs';
 import { popularArtists } from '@/data/artists';
 import { examplePodcasts } from '@/data/podcasts';
@@ -28,8 +29,71 @@ export default function HomeScreen() {
   const { featured, isLoading: featuredLoading } = useFeatured();
   const { popular, isLoading: popularLoading } = usePopular();
   const { podcasts, isLoading: podcastsLoading } = usePodcasts();
+  const { t } = useTranslation();
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
+  const borderColor = useThemeColor({ light: '#CC7AF240', dark: '#CC7AF240' }, 'background');
+  
+  // Crear estilos dinámicos que se actualicen con el tema
+  const dynamicStyles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      paddingTop: Platform.OS === 'ios' ? 50 : 12,
+      borderBottomWidth: 1,
+      borderBottomColor: borderColor,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: textColor,
+      flex: 1,
+    },
+    welcomeText: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: textColor,
+      marginBottom: 4,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: textColor,
+    },
+    albumTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: textColor,
+      marginBottom: 4,
+    },
+    artistName: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: textColor,
+      textAlign: 'center',
+      marginTop: 4,
+    },
+    podcastTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: textColor,
+      marginBottom: 4,
+    },
+    emptyStateText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: textColor,
+      marginTop: 16,
+      textAlign: 'center',
+    },
+  }), [backgroundColor, textColor, borderColor]);
 
   // Obtener nombre de usuario para el saludo
   const getUserDisplayName = () => {
@@ -59,7 +123,7 @@ export default function HomeScreen() {
     return (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
+          <ThemedText style={dynamicStyles.sectionTitle}>{title}</ThemedText>
           <TouchableOpacity>
             <ThemedText style={styles.showAllLink}>Ver todo</ThemedText>
           </TouchableOpacity>
@@ -80,12 +144,12 @@ export default function HomeScreen() {
   return (
       <ThemedView style={styles.container}>
         <View style={styles.header}>
-          <ThemedText style={styles.headerTitle}>Inicio</ThemedText>
+          <ThemedText style={styles.headerTitle}>{t('nav.home')}</ThemedText>
         </View>
         <View style={styles.emptyState}>
-          <Ionicons name="musical-notes-outline" size={64} color="#B3B3B3" />
-          <ThemedText style={styles.emptyStateText}>
-            Inicia sesión para ver contenido personalizado
+          <Ionicons name="musical-notes-outline" size={64} color="#666666" />
+          <ThemedText style={dynamicStyles.emptyStateText}>
+            {t('home.greeting')}, {t('common.back')}
           </ThemedText>
           <TouchableOpacity
             style={styles.loginButton}
@@ -99,10 +163,10 @@ export default function HomeScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={dynamicStyles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <ThemedText style={styles.headerTitle}>Inicio</ThemedText>
+      <View style={dynamicStyles.header}>
+        <ThemedText style={dynamicStyles.headerTitle}>{t('nav.home')}</ThemedText>
         <TouchableOpacity onPress={() => router.push('/search')}>
           <Ionicons name="search" size={24} color={textColor} />
         </TouchableOpacity>
@@ -115,8 +179,8 @@ export default function HomeScreen() {
       >
         {/* Saludo */}
         <View style={styles.welcomeSection}>
-          <ThemedText style={styles.welcomeText}>
-            Bienvenido {getUserDisplayName()}
+          <ThemedText style={dynamicStyles.welcomeText}>
+            {t('home.greeting')}, {getUserDisplayName()}
           </ThemedText>
           <ThemedText style={styles.subtitleText}>
             ¿Qué deseas escuchar hoy?
@@ -125,7 +189,7 @@ export default function HomeScreen() {
 
         {/* Artistas populares - Círculos */}
         {renderSection(
-          'Artistas populares',
+          t('home.artists'),
           popularArtists,
           (artist) => {
             router.push(`/artist/${artist.id}`);
@@ -142,7 +206,7 @@ export default function HomeScreen() {
                 contentFit="cover"
                 transition={200}
               />
-              <ThemedText style={styles.artistName} numberOfLines={1}>
+              <ThemedText style={dynamicStyles.artistName} numberOfLines={1}>
                 {artist.name}
               </ThemedText>
             </TouchableOpacity>
@@ -151,7 +215,7 @@ export default function HomeScreen() {
 
         {/* Podcasts - Recuadros */}
         {renderSection(
-          'Podcasts',
+          t('home.podcasts'),
           podcasts.length > 0 ? podcasts : examplePodcasts, // Usar podcasts del API si están disponibles
           (podcast) => {
             // Navegar a pantalla de podcast o reproducir directamente
@@ -169,7 +233,7 @@ export default function HomeScreen() {
                 contentFit="cover"
                 transition={200}
               />
-              <ThemedText style={styles.podcastTitle} numberOfLines={2}>
+              <ThemedText style={dynamicStyles.podcastTitle} numberOfLines={2}>
                 {podcast.title}
               </ThemedText>
               {podcast.description && (
@@ -183,7 +247,7 @@ export default function HomeScreen() {
 
         {/* Canciones destacadas - Usar canciones de ejemplo si no hay datos del API */}
         {renderSection(
-          'Canciones destacadas',
+          t('home.featured'),
           (featured?.albums && featured.albums.length > 0) 
             ? featured.albums.slice(0, 10) 
             : exampleSongs.filter(song => !song.isExample), // Excluir podcasts de las canciones destacadas
@@ -238,7 +302,7 @@ export default function HomeScreen() {
                   <Ionicons name="musical-notes" size={40} color="#4d4d4d" />
                 </View>
               )}
-              <ThemedText style={styles.albumTitle} numberOfLines={1}>
+              <ThemedText style={dynamicStyles.albumTitle} numberOfLines={1}>
                 {item.title}
         </ThemedText>
               <ThemedText style={styles.albumArtist} numberOfLines={1}>
@@ -256,7 +320,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#FFFFFF', // Fondo blanco
   },
   header: {
     flexDirection: 'row',
@@ -266,12 +330,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingTop: Platform.OS === 'ios' ? 50 : 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#282828',
+    borderBottomColor: '#CC7AF240', // Borde púrpura claro sutil
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     flex: 1,
   },
   welcomeSection: {
@@ -281,13 +345,13 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     marginBottom: 4,
   },
   subtitleText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#B3B3B3',
+    color: '#666666', // Gris oscuro
   },
   scrollView: {
     flex: 1,
@@ -308,12 +372,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
   },
   showAllLink: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#B3B3B3',
+    color: '#F22976', // Rosa para enlaces
   },
   horizontalScroll: {
     marginHorizontal: -16,
@@ -331,17 +395,17 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 8,
     marginBottom: 12,
-    backgroundColor: '#282828',
+    backgroundColor: '#CC7AF215', // Fondo púrpura claro muy sutil
   },
   albumTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     marginBottom: 4,
   },
   albumArtist: {
     fontSize: 12,
-    color: '#B3B3B3',
+    color: '#666666', // Gris oscuro
   },
   artistCard: {
     width: 120,
@@ -353,12 +417,12 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     marginBottom: 12,
-    backgroundColor: '#282828',
+    backgroundColor: '#CC7AF215', // Fondo púrpura claro muy sutil
   },
   artistName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     textAlign: 'center',
     marginTop: 4,
   },
@@ -371,17 +435,17 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 8,
     marginBottom: 12,
-    backgroundColor: '#282828',
+    backgroundColor: '#CC7AF215', // Fondo púrpura claro muy sutil
   },
   podcastTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     marginBottom: 4,
   },
   podcastDescription: {
     fontSize: 12,
-    color: '#B3B3B3',
+    color: '#666666', // Gris oscuro
   },
   emptyState: {
     flex: 1,
@@ -393,7 +457,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     marginTop: 16,
     textAlign: 'center',
   },

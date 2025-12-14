@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -14,11 +14,13 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { usePlaylists, useLikedSongs, useCreatePlaylist, useDeletePlaylist } from '@/hooks/useLibrary';
 import { useAuth } from '@/contexts/AuthContext';
 import { Playlist } from '@/models/playlist';
 import { Song } from '@/models/song';
+import { usePreferences } from '@/contexts/PreferencesContext';
 
 const { width } = Dimensions.get('window');
 const isMobile = width < 768;
@@ -35,6 +37,116 @@ export default function LibraryScreen() {
   const deletePlaylist = useDeletePlaylist();
 
   const isLoading = activeTab === 'playlists' ? playlistsLoading : likedLoading;
+  
+  // Colores dinámicos del tema
+  const { currentTheme } = usePreferences();
+  const isDark = currentTheme === 'dark';
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const iconColor = useThemeColor({}, 'icon');
+  const borderColor = useThemeColor({ light: '#CC7AF240', dark: '#333333' }, 'background');
+  
+  // Colores para los bloques
+  const cardBg = isDark ? '#000000' : backgroundColor; // Negro en dark, fondo del tema en light
+  const cardBorder = isDark ? '#333333' : '#CC7AF280'; // Borde más visible en dark
+  const metaTextColor = isDark ? '#B3B3B3' : '#666666'; // Gris más claro en dark
+  
+  // Crear estilos dinámicos que se actualicen con el tema
+  const dynamicStyles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      paddingTop: isMobile ? 50 : 12,
+      borderBottomWidth: 1,
+      borderBottomColor: borderColor,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: textColor,
+      flex: 1,
+    },
+    tabs: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: borderColor,
+      gap: 8,
+    },
+    tab: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+    },
+    tabActive: {
+      backgroundColor: '#CC7AF220', // Púrpura claro con 20% opacidad
+    },
+    tabText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: isDark ? '#B3B3B3' : '#666666',
+    },
+    tabTextActive: {
+      color: textColor,
+      fontWeight: '700',
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: 16,
+      paddingBottom: 100,
+    },
+    playlistCard: {
+      backgroundColor: cardBg,
+      borderColor: cardBorder,
+    },
+    playlistName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: textColor,
+      marginBottom: 4,
+    },
+    playlistMeta: {
+      fontSize: 14,
+      color: metaTextColor,
+    },
+    songCard: {
+      backgroundColor: cardBg,
+      borderColor: cardBorder,
+    },
+    songTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: textColor,
+      marginBottom: 4,
+    },
+    songArtist: {
+      fontSize: 14,
+      color: metaTextColor,
+    },
+    emptyStateText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: textColor,
+      marginTop: 16,
+      textAlign: 'center',
+    },
+    emptyStateSubtext: {
+      fontSize: 14,
+      color: metaTextColor,
+      marginTop: 8,
+      textAlign: 'center',
+    },
+  }), [backgroundColor, textColor, borderColor, isMobile, cardBg, cardBorder, metaTextColor, isDark, isMobile]);
 
   const handleRefresh = () => {
     if (activeTab === 'playlists') {
@@ -88,7 +200,7 @@ export default function LibraryScreen() {
   const renderPlaylistCard = (playlist: Playlist) => (
     <TouchableOpacity
       key={playlist.id}
-      style={styles.playlistCard}
+      style={[styles.playlistCard, dynamicStyles.playlistCard]}
       onPress={() => router.push(`/playlist/${playlist.id}`)}
     >
       {playlist.coverUrl ? (
@@ -103,10 +215,10 @@ export default function LibraryScreen() {
         </View>
       )}
       <View style={styles.playlistInfo}>
-        <ThemedText style={styles.playlistName} numberOfLines={1}>
+        <ThemedText style={dynamicStyles.playlistName} numberOfLines={1}>
           {playlist.name}
         </ThemedText>
-        <ThemedText style={styles.playlistMeta}>
+        <ThemedText style={[styles.playlistMeta, dynamicStyles.playlistMeta]}>
           {playlist.songCount || 0} canciones
         </ThemedText>
       </View>
@@ -114,7 +226,7 @@ export default function LibraryScreen() {
         style={styles.deleteButton}
         onPress={() => handleDeletePlaylist(playlist)}
       >
-        <Ionicons name="trash-outline" size={20} color="#B3B3B3" />
+        <Ionicons name="trash-outline" size={20} color={metaTextColor} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -122,7 +234,7 @@ export default function LibraryScreen() {
   const renderSongCard = (song: Song, index: number) => (
     <TouchableOpacity
       key={song.id || index}
-      style={styles.songCard}
+      style={[styles.songCard, dynamicStyles.songCard]}
       onPress={() => router.push(`/now-playing?songId=${song.id}`)}
     >
       <Image
@@ -131,10 +243,10 @@ export default function LibraryScreen() {
         contentFit="cover"
       />
       <View style={styles.songInfo}>
-        <ThemedText style={styles.songTitle} numberOfLines={1}>
+        <ThemedText style={dynamicStyles.songTitle} numberOfLines={1}>
           {song.title}
         </ThemedText>
-        <ThemedText style={styles.songArtist} numberOfLines={1}>
+        <ThemedText style={[styles.songArtist, dynamicStyles.songArtist]} numberOfLines={1}>
           {song.artist}
         </ThemedText>
       </View>
@@ -143,10 +255,10 @@ export default function LibraryScreen() {
 
   if (!isAuthenticated) {
     return (
-      <ThemedView style={styles.container}>
+      <ThemedView style={dynamicStyles.container}>
         <View style={styles.emptyState}>
-          <Ionicons name="library-outline" size={64} color="#B3B3B3" />
-          <ThemedText style={styles.emptyStateText}>
+          <Ionicons name="library-outline" size={64} color="#666666" />
+          <ThemedText style={dynamicStyles.emptyStateText}>
             Inicia sesión para ver tu biblioteca
           </ThemedText>
           <TouchableOpacity
@@ -161,36 +273,36 @@ export default function LibraryScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={dynamicStyles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <ThemedText style={styles.headerTitle}>Tu biblioteca</ThemedText>
+      <View style={dynamicStyles.header}>
+        <ThemedText style={dynamicStyles.headerTitle}>Tu biblioteca</ThemedText>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowCreateModal(true)}
         >
-          <Ionicons name="add" size={24} color="#FFFFFF" />
+          <Ionicons name="add" size={24} color={textColor} />
         </TouchableOpacity>
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
+      <View style={dynamicStyles.tabs}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'playlists' && styles.tabActive]}
+          style={[dynamicStyles.tab, activeTab === 'playlists' && dynamicStyles.tabActive]}
           onPress={() => setActiveTab('playlists')}
         >
           <ThemedText
-            style={[styles.tabText, activeTab === 'playlists' && styles.tabTextActive]}
+            style={[dynamicStyles.tabText, activeTab === 'playlists' && dynamicStyles.tabTextActive]}
           >
             Playlists
           </ThemedText>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'liked' && styles.tabActive]}
+          style={[dynamicStyles.tab, activeTab === 'liked' && dynamicStyles.tabActive]}
           onPress={() => setActiveTab('liked')}
         >
           <ThemedText
-            style={[styles.tabText, activeTab === 'liked' && styles.tabTextActive]}
+            style={[dynamicStyles.tabText, activeTab === 'liked' && dynamicStyles.tabTextActive]}
           >
             Canciones que te gustan
           </ThemedText>
@@ -198,8 +310,8 @@ export default function LibraryScreen() {
       </View>
 
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        style={dynamicStyles.scrollView}
+        contentContainerStyle={dynamicStyles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
@@ -215,11 +327,11 @@ export default function LibraryScreen() {
         ) : activeTab === 'playlists' ? (
           playlists.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="list-outline" size={64} color="#B3B3B3" />
-              <ThemedText style={styles.emptyStateText}>
+              <Ionicons name="list-outline" size={64} color="#666666" />
+              <ThemedText style={dynamicStyles.emptyStateText}>
                 No tienes playlists aún
               </ThemedText>
-              <ThemedText style={styles.emptyStateSubtext}>
+              <ThemedText style={[styles.emptyStateSubtext, dynamicStyles.emptyStateSubtext]}>
                 Crea tu primera playlist para comenzar
               </ThemedText>
               <TouchableOpacity
@@ -236,8 +348,8 @@ export default function LibraryScreen() {
           )
         ) : likedSongs.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="heart-outline" size={64} color="#B3B3B3" />
-            <ThemedText style={styles.emptyStateText}>
+            <Ionicons name="heart-outline" size={64} color="#666666" />
+            <ThemedText style={dynamicStyles.emptyStateText}>
               No tienes canciones guardadas
             </ThemedText>
             <ThemedText style={styles.emptyStateSubtext}>
@@ -259,7 +371,7 @@ export default function LibraryScreen() {
             <TextInput
               style={styles.modalInput}
               placeholder="Nombre de la playlist"
-              placeholderTextColor="#B3B3B3"
+              placeholderTextColor="#999999"
               value={newPlaylistName}
               onChangeText={setNewPlaylistName}
               autoFocus
@@ -294,7 +406,7 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#FFFFFF', // Fondo blanco
   },
   header: {
     flexDirection: 'row',
@@ -304,40 +416,26 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingTop: isMobile ? 50 : 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#282828',
+    borderBottomColor: '#CC7AF240', // Borde púrpura claro sutil
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     flex: 1,
   },
   addButton: {
     padding: 4,
   },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#282828',
-    gap: 8,
-  },
-  tab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  tabActive: {
-    backgroundColor: '#282828',
-  },
+  // tabs, tab, tabActive se aplican dinámicamente
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#B3B3B3',
+    color: '#666666', // Gris oscuro
   },
   tabTextActive: {
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
+    fontWeight: '700',
   },
   scrollView: {
     flex: 1,
@@ -352,16 +450,18 @@ const styles = StyleSheet.create({
   playlistCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: '#FFFFFF', // Fondo blanco
     borderRadius: 8,
     padding: 12,
     gap: 12,
+    borderWidth: 1,
+    borderColor: '#CC7AF280', // Borde púrpura claro
   },
   playlistImage: {
     width: 60,
     height: 60,
     borderRadius: 4,
-    backgroundColor: '#282828',
+    backgroundColor: '#CC7AF215', // Fondo púrpura claro muy sutil
   },
   playlistImagePlaceholder: {
     justifyContent: 'center',
@@ -373,12 +473,12 @@ const styles = StyleSheet.create({
   playlistName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
     marginBottom: 4,
   },
   playlistMeta: {
     fontSize: 14,
-    color: '#B3B3B3',
+    // color se aplica dinámicamente
   },
   deleteButton: {
     padding: 8,
@@ -389,8 +489,10 @@ const styles = StyleSheet.create({
   songCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    // backgroundColor se aplica dinámicamente
     borderRadius: 8,
+    borderWidth: 1,
+    // borderColor se aplica dinámicamente
     padding: 12,
     gap: 12,
   },
@@ -398,7 +500,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 4,
-    backgroundColor: '#282828',
+    backgroundColor: '#CC7AF215', // Fondo púrpura claro muy sutil
   },
   songInfo: {
     flex: 1,
@@ -406,12 +508,12 @@ const styles = StyleSheet.create({
   songTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
     marginBottom: 4,
   },
   songArtist: {
     fontSize: 14,
-    color: '#B3B3B3',
+    // color se aplica dinámicamente
   },
   loadingContainer: {
     padding: 40,
@@ -428,13 +530,13 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
     marginTop: 16,
     textAlign: 'center',
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#B3B3B3',
+    // color se aplica dinámicamente
     marginTop: 8,
     textAlign: 'center',
   },
@@ -474,24 +576,28 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   modalContent: {
-    backgroundColor: '#181818',
+    backgroundColor: '#FFFFFF', // Fondo blanco
     borderRadius: 12,
     padding: 24,
     width: isMobile ? '90%' : 400,
+    borderWidth: 1,
+    borderColor: '#CC7AF280', // Borde púrpura claro
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     marginBottom: 16,
   },
   modalInput: {
-    backgroundColor: '#282828',
+    backgroundColor: '#FFFFFF', // Fondo blanco
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#CC7AF280', // Borde púrpura claro
   },
   modalButtons: {
     flexDirection: 'row',
@@ -504,15 +610,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   modalButtonCancel: {
-    backgroundColor: '#282828',
+    backgroundColor: '#CC7AF215', // Púrpura claro muy sutil
+    borderWidth: 1,
+    borderColor: '#CC7AF280', // Borde púrpura claro
   },
   modalButtonCreate: {
-    backgroundColor: '#F22976',
+    backgroundColor: '#F22976', // Rosa para botón de acción
   },
   modalButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
   },
 });
 

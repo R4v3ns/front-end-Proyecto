@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePreferences } from '@/contexts/PreferencesContext';
 // import * as ImagePicker from 'expo-image-picker';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -29,8 +30,12 @@ const isMobile = width < 768;
 
 export default function ProfileSettingsScreen() {
   const { user, updateUser, logout } = useAuth();
+  const { currentTheme } = usePreferences();
+  const isDark = currentTheme === 'dark';
+  const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
+  const borderColor = useThemeColor({ light: '#CC7AF240', dark: '#333333' }, 'background');
   
   // Estados del formulario
   const [username, setUsername] = useState('');
@@ -47,6 +52,64 @@ export default function ProfileSettingsScreen() {
   const [saving, setSaving] = useState(false);
   
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  
+  // Crear estilos dinámicos que se actualicen con el tema
+  const dynamicStyles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor,
+    },
+    header: {
+      borderBottomColor: borderColor,
+    },
+    headerTitle: {
+      color: textColor,
+    },
+    scrollContent: {
+      padding: isMobile ? 16 : 24,
+      paddingBottom: isMobile ? 32 : 40,
+    },
+    passwordSection: {
+      backgroundColor: isDark ? '#000000' : backgroundColor,
+      borderColor: isDark ? '#333333' : '#CC7AF280',
+    },
+    sectionTitle: {
+      color: textColor,
+    },
+    label: {
+      color: textColor,
+    },
+    textArea: {
+      backgroundColor: isDark ? '#000000' : '#CC7AF215',
+      borderColor: isDark ? '#333333' : '#CC7AF240',
+      color: textColor,
+    },
+    hint: {
+      color: isDark ? '#B3B3B3' : '#666666',
+    },
+    passwordButtonSection: {
+      backgroundColor: isDark ? '#000000' : backgroundColor,
+      borderColor: isDark ? '#333333' : '#CC7AF280',
+    },
+    loadingText: {
+      color: textColor,
+    },
+    profileImagePlaceholderText: {
+      color: '#FFFFFF', // Siempre blanco en el placeholder
+    },
+    profileImageHint: {
+      color: isDark ? '#B3B3B3' : '#666666',
+    },
+    bannerHint: {
+      color: isDark ? '#B3B3B3' : '#666666',
+    },
+    planText: {
+      color: textColor,
+    },
+    changePasswordNavButtonText: {
+      color: textColor,
+    },
+  }), [backgroundColor, textColor, borderColor, isDark, isMobile]);
 
   // Cargar datos del usuario al iniciar
   useEffect(() => {
@@ -184,7 +247,7 @@ export default function ProfileSettingsScreen() {
           setUsername(user.name || '');
           setFirstName(user.firstName || '');
           setLastName(user.lastName || '');
-          setPlan(user.plan || 'Free');
+          setPlan((user.plan as 'Free' | 'VIP') || 'Free');
         }
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -621,19 +684,19 @@ export default function ProfileSettingsScreen() {
       
       // También mostrar Alert como respaldo (para móvil)
       if (Platform.OS !== 'web') {
-        Alert.alert(
+      Alert.alert(
           '✅ Cambios actualizados con éxito',
           messageText,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
+        [
+          {
+            text: 'OK',
+            onPress: () => {
                 console.log('✅ Usuario presionó OK, regresando...');
-                router.back();
-              },
+              router.back();
             },
-          ]
-        );
+          },
+        ]
+      );
       } else {
         // En web, solo mostrar toast y regresar después de un momento
         setTimeout(() => {
@@ -746,9 +809,9 @@ export default function ProfileSettingsScreen() {
       
       // También mostrar Alert como respaldo (para móvil)
       if (Platform.OS !== 'web') {
-        Alert.alert(
+      Alert.alert(
           alertTitle,
-          finalErrorMessage,
+        finalErrorMessage,
           [{ 
             text: 'OK',
             onPress: () => {
@@ -763,9 +826,9 @@ export default function ProfileSettingsScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: '#121212' }]}>
+    <ThemedView style={[styles.container, dynamicStyles.container]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: '#121212' }, isMobile && styles.headerMobile]}>
+      <ThemedView style={[styles.header, isMobile && styles.headerMobile, dynamicStyles.header]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -773,21 +836,21 @@ export default function ProfileSettingsScreen() {
           >
             <Ionicons name="arrow-back" size={isMobile ? 24 : 28} color={textColor} />
           </TouchableOpacity>
-          <ThemedText style={[styles.headerTitle, isMobile && styles.headerTitleMobile]}>
+          <ThemedText style={[styles.headerTitle, isMobile && styles.headerTitleMobile, dynamicStyles.headerTitle]}>
             Configurar Perfil
           </ThemedText>
         </View>
-      </View>
+      </ThemedView>
 
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#1DB954" />
-          <ThemedText style={styles.loadingText}>Cargando perfil...</ThemedText>
+          <ThemedText style={[styles.loadingText, dynamicStyles.loadingText]}>Cargando perfil...</ThemedText>
         </View>
       ) : (
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, isMobile && styles.scrollContentMobile]}
+        contentContainerStyle={[styles.scrollContent, isMobile && styles.scrollContentMobile, dynamicStyles.scrollContent]}
         showsVerticalScrollIndicator={false}
       >
         {/* Sección de banner y foto de perfil */}
@@ -863,7 +926,7 @@ export default function ProfileSettingsScreen() {
                 />
               ) : (
                 <View style={styles.profileImagePlaceholder}>
-                  <ThemedText style={styles.profileImagePlaceholderText}>
+                  <ThemedText style={[styles.profileImagePlaceholderText, dynamicStyles.profileImagePlaceholderText]}>
                     {getInitialLetter()}
                   </ThemedText>
                 </View>
@@ -874,10 +937,10 @@ export default function ProfileSettingsScreen() {
             </TouchableOpacity>
           </View>
           
-          <ThemedText style={styles.profileImageHint}>
+          <ThemedText style={[styles.profileImageHint, dynamicStyles.profileImageHint]}>
             Toca la imagen para cambiar tu foto de perfil
           </ThemedText>
-          <ThemedText style={styles.bannerHint}>
+          <ThemedText style={[styles.bannerHint, dynamicStyles.bannerHint]}>
             Toca el banner para cambiarlo
           </ThemedText>
           
@@ -888,7 +951,7 @@ export default function ProfileSettingsScreen() {
               size={16} 
               color={plan === 'VIP' ? '#FFD700' : '#FFFFFF'} 
             />
-            <ThemedText style={[styles.planText, plan === 'VIP' && styles.planTextVIP]}>
+            <ThemedText style={[styles.planText, plan === 'VIP' && styles.planTextVIP, dynamicStyles.planText]}>
               Plan {plan}
             </ThemedText>
           </View>
@@ -921,9 +984,9 @@ export default function ProfileSettingsScreen() {
           />
 
           <View style={styles.textAreaContainer}>
-            <ThemedText style={styles.label}>Biografía</ThemedText>
+            <ThemedText style={[styles.label, dynamicStyles.label]}>Biografía</ThemedText>
             <TextInput
-              style={[styles.textArea, { color: textColor }]}
+              style={[styles.textArea, dynamicStyles.textArea]}
               placeholder="Cuéntanos sobre ti..."
               placeholderTextColor={iconColor}
               value={biography}
@@ -943,7 +1006,7 @@ export default function ProfileSettingsScreen() {
             autoComplete="tel"
             maxLength={16}
           />
-          <ThemedText style={styles.hint}>
+          <ThemedText style={[styles.hint, dynamicStyles.hint]}>
             Puedes incluir el signo + al inicio (máximo 15 dígitos)
           </ThemedText>
 
@@ -955,20 +1018,20 @@ export default function ProfileSettingsScreen() {
             keyboardType="numeric"
             maxLength={10}
           />
-          <ThemedText style={styles.hint}>
+          <ThemedText style={[styles.hint, dynamicStyles.hint]}>
             Formato: DD/MM/AAAA (ejemplo: 15/03/1990)
           </ThemedText>
         </View>
 
         {/* Botón para cambiar contraseña */}
-        <View style={styles.passwordButtonSection}>
+        <View style={[styles.passwordButtonSection, dynamicStyles.passwordButtonSection]}>
           <TouchableOpacity
             style={[styles.changePasswordNavButton, isMobile && styles.changePasswordNavButtonMobile]}
             onPress={() => router.push('/change-password')}
             activeOpacity={0.8}
           >
-            <Ionicons name="lock-closed-outline" size={isMobile ? 18 : 20} color="#FFFFFF" />
-            <ThemedText style={[styles.changePasswordNavButtonText, isMobile && styles.changePasswordNavButtonTextMobile]}>
+            <Ionicons name="lock-closed-outline" size={isMobile ? 18 : 20} color={textColor} />
+            <ThemedText style={[styles.changePasswordNavButtonText, isMobile && styles.changePasswordNavButtonTextMobile, dynamicStyles.changePasswordNavButtonText]}>
               Cambiar contraseña
             </ThemedText>
             <Ionicons name="chevron-forward" size={isMobile ? 18 : 20} color="#B3B3B3" />
@@ -976,14 +1039,14 @@ export default function ProfileSettingsScreen() {
         </View>
 
         {/* Botón para preferencias de cuenta */}
-        <View style={styles.passwordButtonSection}>
+        <View style={[styles.passwordButtonSection, dynamicStyles.passwordButtonSection]}>
           <TouchableOpacity
             style={[styles.changePasswordNavButton, isMobile && styles.changePasswordNavButtonMobile]}
             onPress={() => router.push('/account-preferences')}
             activeOpacity={0.8}
           >
-            <Ionicons name="settings-outline" size={isMobile ? 18 : 20} color="#FFFFFF" />
-            <ThemedText style={[styles.changePasswordNavButtonText, isMobile && styles.changePasswordNavButtonTextMobile]}>
+            <Ionicons name="settings-outline" size={isMobile ? 18 : 20} color={textColor} />
+            <ThemedText style={[styles.changePasswordNavButtonText, isMobile && styles.changePasswordNavButtonTextMobile, dynamicStyles.changePasswordNavButtonText]}>
               Preferencias de cuenta
             </ThemedText>
             <Ionicons name="chevron-forward" size={isMobile ? 18 : 20} color="#B3B3B3" />
@@ -1023,7 +1086,7 @@ export default function ProfileSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#FFFFFF', // Fondo blanco
   },
   header: {
     flexDirection: 'row',
@@ -1031,7 +1094,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#282828',
+    // borderBottomColor se aplica dinámicamente
   },
   headerMobile: {
     paddingHorizontal: 12,
@@ -1048,7 +1111,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
   },
   headerTitleMobile: {
     fontSize: 20,
@@ -1110,7 +1173,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#282828',
+    backgroundColor: '#CC7AF215', // Fondo púrpura claro muy sutil
   },
   profileImagePlaceholder: {
     width: 120,
@@ -1140,13 +1203,13 @@ const styles = StyleSheet.create({
   },
   profileImageHint: {
     fontSize: 14,
-    color: '#B3B3B3',
+    // color se aplica dinámicamente
     textAlign: 'center',
     marginBottom: 4,
   },
   bannerHint: {
     fontSize: 12,
-    color: '#B3B3B3',
+    // color se aplica dinámicamente
     textAlign: 'center',
   },
   planBadge: {
@@ -1156,7 +1219,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#282828',
+    backgroundColor: '#CC7AF215', // Fondo púrpura claro muy sutil
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#404040',
@@ -1164,7 +1227,7 @@ const styles = StyleSheet.create({
   planText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
   },
   planTextVIP: {
     color: '#FFD700',
@@ -1176,16 +1239,16 @@ const styles = StyleSheet.create({
   passwordSection: {
     marginBottom: 32,
     padding: 20,
-    backgroundColor: '#1A1A1A',
+    // backgroundColor se aplica dinámicamente
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#282828',
+    // borderColor se aplica dinámicamente
     gap: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
     marginBottom: 8,
   },
   changePasswordButton: {
@@ -1207,7 +1270,7 @@ const styles = StyleSheet.create({
   changePasswordButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#FFFFFF', // Mantener blanco para contraste en botón rosa
   },
   textAreaContainer: {
     marginBottom: 8,
@@ -1215,31 +1278,31 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
     marginBottom: 8,
   },
   textArea: {
     minHeight: 100,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#282828',
+    // backgroundColor se aplica dinámicamente
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#404040',
+    // borderColor y color se aplican dinámicamente
   },
   hint: {
     fontSize: 12,
-    color: '#B3B3B3',
+    // color se aplica dinámicamente
     marginTop: -16,
     marginBottom: 8,
   },
   passwordButtonSection: {
     marginBottom: 32,
     padding: 20,
-    backgroundColor: '#1A1A1A',
+    // backgroundColor se aplica dinámicamente
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#282828',
+    // borderColor se aplica dinámicamente
   },
   changePasswordNavButton: {
     flexDirection: 'row',
@@ -1258,7 +1321,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
   },
   changePasswordNavButtonTextMobile: {
     fontSize: 14,
@@ -1300,7 +1363,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#B3B3B3',
+    color: '#666666', // Gris oscuro
   },
 });
 

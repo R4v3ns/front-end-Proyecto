@@ -348,9 +348,10 @@ export const useAudioPlayer = (playlist: Song[]) => {
       
       console.log(`🎵 loadAndPlaySong - Cargando nuevo audio desde: ${audioUri.substring(0, 50)}...`);
       
-      // SIEMPRE comenzar desde 0 cuando se carga una nueva canción
-      // La posición guardada solo se usa para pausar/reanudar la MISMA canción
-      const startPosition = 0; // Siempre comenzar desde el principio
+      // Determinar la posición inicial: usar savedPositionRef si hay una posición guardada (para seek o reanudar)
+      // Si savedPositionRef es 0, significa que es una nueva canción y debe comenzar desde 0
+      const startPositionMillis = savedPositionRef.current > 0 ? savedPositionRef.current * 1000 : 0;
+      const shouldStartPlaying = savedPositionRef.current > 0 && playerStateRef.current.isPlaying;
       
       // Crear nuevo sonido SIN reproducir automáticamente
       // Reproduciremos manualmente después de que esté completamente cargado
@@ -360,7 +361,7 @@ export const useAudioPlayer = (playlist: Song[]) => {
           shouldPlay: false, // NO reproducir automáticamente
           volume: playerStateRef.current.volume,
           isMuted: false,
-          positionMillis: 0, // SIEMPRE comenzar desde el principio
+          positionMillis: startPositionMillis, // Usar la posición guardada si existe
         },
         onPlaybackStatusUpdate
       );
@@ -370,9 +371,14 @@ export const useAudioPlayer = (playlist: Song[]) => {
       if (isLoadingRef.current && soundRef.current === null && playerStateRef.current.currentSong?.id === song.id) {
         soundRef.current = sound;
         
-        // Asegurar que la canción comience desde 0
+        // Asegurar que la canción esté en la posición correcta
         try {
-          await sound.setPositionAsync(0);
+          if (startPositionMillis > 0) {
+            await sound.setPositionAsync(startPositionMillis);
+            console.log(`🎯 loadAndPlaySong - Posicionando en ${savedPositionRef.current.toFixed(2)}s`);
+          } else {
+            await sound.setPositionAsync(0);
+          }
         } catch (seekError) {
           console.warn('⚠️ Error al establecer posición inicial:', seekError);
         }
@@ -382,19 +388,25 @@ export const useAudioPlayer = (playlist: Song[]) => {
           ...prev,
           currentSong: song,
           currentIndex: index,
-          currentTime: 0, // SIEMPRE comenzar desde 0
+          currentTime: savedPositionRef.current > 0 ? savedPositionRef.current : 0,
           isLoading: false, // Audio cargado
           isPlaying: false, // Aún no está reproduciendo, lo iniciaremos manualmente
         }));
         
-        // Ahora reproducir manualmente después de que el estado esté actualizado
+        // Si había una posición guardada y estaba reproduciendo, continuar desde ahí
+        // Si no, comenzar desde el inicio
         try {
-          await sound.playAsync();
-          setPlayerState(prev => ({
-            ...prev,
-            isPlaying: true,
-          }));
-          console.log(`✅ loadAndPlaySong - Audio cargado y reproduciendo desde el inicio: ${song.title}`);
+          if (shouldStartPlaying) {
+            await sound.playAsync();
+            setPlayerState(prev => ({
+              ...prev,
+              isPlaying: true,
+            }));
+            console.log(`✅ loadAndPlaySong - Audio cargado y reproduciendo desde ${savedPositionRef.current.toFixed(2)}s: ${song.title}`);
+          } else {
+            // Si no estaba reproduciendo, solo cargar sin reproducir
+            console.log(`✅ loadAndPlaySong - Audio cargado (pausado) desde ${savedPositionRef.current > 0 ? savedPositionRef.current.toFixed(2) + 's' : 'el inicio'}: ${song.title}`);
+          }
         } catch (playError) {
           console.error('❌ Error al iniciar reproducción después de cargar:', playError);
           setPlayerState(prev => ({
@@ -597,15 +609,33 @@ export const useAudioPlayer = (playlist: Song[]) => {
 
   // Buscar en la canción
   const seekTo = async (timeInSeconds: number) => {
+    const state = playerStateRef.current;
+    const currentSong = state.currentSong;
+    
+    // Si no hay canción actual, no hacer nada
+    if (!currentSong) {
+      console.warn('⚠️ seekTo - No hay canción actual');
+      return;
+    }
+
+    // Si el audio no está cargado, cargarlo primero
     if (!soundRef.current) {
-      console.warn('⚠️ seekTo - No hay audio cargado');
+      console.log('🔄 seekTo - Audio no está cargado, cargando canción...');
+      // Guardar la posición deseada antes de cargar
+      savedPositionRef.current = timeInSeconds;
+      // Cargar la canción (se reproducirá desde la posición guardada si estaba reproduciendo)
+      await loadAndPlaySong(currentSong, state.currentIndex);
       return;
     }
 
     try {
       const status = await soundRef.current.getStatusAsync();
       if (!status.isLoaded) {
-        console.warn('⚠️ seekTo - Audio no está cargado');
+        console.log('🔄 seekTo - Audio no está cargado, recargando...');
+        // Guardar la posición deseada antes de recargar
+        savedPositionRef.current = timeInSeconds;
+        // Recargar la canción
+        await loadAndPlaySong(currentSong, state.currentIndex);
         return;
       }
 
@@ -652,11 +682,18 @@ export const useAudioPlayer = (playlist: Song[]) => {
       }
     } catch (error) {
       console.error('❌ Error seeking:', error);
-      // Actualizar el estado de todas formas para que la UI refleje el cambio
-      setPlayerState(prev => ({
-        ...prev,
-        currentTime: timeInSeconds,
-      }));
+      // Si hay error, intentar recargar la canción
+      if (currentSong) {
+        console.log('🔄 seekTo - Error en seek, recargando canción...');
+        savedPositionRef.current = timeInSeconds;
+        await loadAndPlaySong(currentSong, state.currentIndex);
+      } else {
+        // Actualizar el estado de todas formas para que la UI refleje el cambio
+        setPlayerState(prev => ({
+          ...prev,
+          currentTime: timeInSeconds,
+        }));
+      }
     }
   };
 

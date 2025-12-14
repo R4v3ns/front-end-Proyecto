@@ -1,14 +1,24 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useSegments } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { formatTime } from '@/utils/formatTime';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { usePreferences } from '@/contexts/PreferencesContext';
 
 export default function MiniPlayer() {
   const router = useRouter();
-  const segments = useSegments();
+  const pathname = usePathname();
+  
+  // Colores dinámicos del tema
+  const { currentTheme } = usePreferences();
+  const isDark = currentTheme === 'dark';
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const borderColor = useThemeColor({ light: '#CC7AF240', dark: '#333333' }, 'background');
+  const metaTextColor = isDark ? '#B3B3B3' : '#666666';
   
   const {
     playerState,
@@ -18,9 +28,10 @@ export default function MiniPlayer() {
     seekTo,
   } = usePlayer();
 
-  // No mostrar si no hay canción actual o si estamos en la pantalla now-playing
-  const isNowPlaying = segments.some(segment => segment === 'now-playing');
-  if (!playerState.currentSong || isNowPlaying) {
+  // No mostrar si no hay canción actual o si estamos en pantallas específicas
+  const isNowPlaying = pathname?.includes('/now-playing');
+  const isAccountPreferences = pathname?.includes('/account-preferences');
+  if (!playerState.currentSong || isNowPlaying || isAccountPreferences) {
     return null;
   }
 
@@ -40,8 +51,28 @@ export default function MiniPlayer() {
     }
   };
 
+  // Crear estilos dinámicos que se actualicen con el tema
+  const dynamicStyles = useMemo(() => StyleSheet.create({
+    container: {
+      backgroundColor,
+      borderTopColor: borderColor,
+    },
+    title: {
+      color: textColor,
+    },
+    artist: {
+      color: metaTextColor,
+    },
+    playButton: {
+      backgroundColor: isDark ? '#333333' : '#FFFFFF',
+    },
+    timeText: {
+      color: metaTextColor,
+    },
+  }), [backgroundColor, textColor, borderColor, metaTextColor, isDark]);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dynamicStyles.container]}>
       <TouchableOpacity 
         style={styles.content}
         onPress={handlePress}
@@ -57,10 +88,10 @@ export default function MiniPlayer() {
 
         {/* Información de la canción */}
         <View style={styles.songInfo}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.title, dynamicStyles.title]} numberOfLines={1}>
             {currentSong.title}
           </Text>
-          <Text style={styles.artist} numberOfLines={1}>
+          <Text style={[styles.artist, dynamicStyles.artist]} numberOfLines={1}>
             {currentSong.artist}
           </Text>
         </View>
@@ -75,7 +106,7 @@ export default function MiniPlayer() {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={styles.controlButton}
           >
-            <Ionicons name="play-skip-back" size={20} color="#FFFFFF" />
+            <Ionicons name="play-skip-back" size={20} color={textColor} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -84,12 +115,12 @@ export default function MiniPlayer() {
               togglePlayPause();
             }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.playButton}
+            style={[styles.playButton, dynamicStyles.playButton]}
           >
             <Ionicons
               name={isPlaying ? "pause" : "play"}
               size={20}
-              color="#000000"
+              color={isDark ? '#FFFFFF' : '#000000'}
             />
           </TouchableOpacity>
 
@@ -101,7 +132,7 @@ export default function MiniPlayer() {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={styles.controlButton}
           >
-            <Ionicons name="play-skip-forward" size={20} color="#FFFFFF" />
+            <Ionicons name="play-skip-forward" size={20} color={textColor} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -120,8 +151,8 @@ export default function MiniPlayer() {
           <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
         </View>
         <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-          <Text style={styles.timeText}>{formatTime(duration)}</Text>
+          <Text style={[styles.timeText, dynamicStyles.timeText]}>{formatTime(currentTime)}</Text>
+          <Text style={[styles.timeText, dynamicStyles.timeText]}>{formatTime(duration)}</Text>
         </View>
       </TouchableOpacity>
     </View>
@@ -131,24 +162,24 @@ export default function MiniPlayer() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 65, // Posicionar justo encima de la barra de tabs (altura: 65px)
     left: 0,
     right: 0,
-    backgroundColor: '#1a1a1a',
+    // backgroundColor se aplica dinámicamente
     borderTopWidth: 1,
-    borderTopColor: '#333333',
+    // borderTopColor se aplica dinámicamente
     paddingBottom: 12,
     paddingTop: 10,
     paddingHorizontal: 16,
-    zIndex: 1000,
-    shadowColor: '#000',
+    zIndex: 999, // Menor que la barra de tabs pero mayor que el contenido
+    shadowColor: '#7129F2',
     shadowOffset: {
       width: 0,
       height: -2,
     },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.1,
     shadowRadius: 6,
-    elevation: 10,
+    elevation: 9,
   },
   content: {
     flexDirection: 'row',
@@ -160,7 +191,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 6,
     marginRight: 12,
-    backgroundColor: '#333333',
+    backgroundColor: '#CC7AF215', // Fondo púrpura claro muy sutil
   },
   songInfo: {
     flex: 1,
@@ -168,13 +199,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    color: '#FFFFFF',
+    // color se aplica dinámicamente
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 2,
   },
   artist: {
-    color: '#B3B3B3',
+    // color se aplica dinámicamente
     fontSize: 12,
     fontWeight: '400',
   },
@@ -192,7 +223,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    // backgroundColor se aplica dinámicamente
     justifyContent: 'center',
     alignItems: 'center',
     paddingLeft: 2, // Ajuste para centrar el icono de play
@@ -210,7 +241,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 2,
-    backgroundColor: '#333333',
+    backgroundColor: '#CC7AF240', // Púrpura claro con opacidad
     borderRadius: 1,
     marginBottom: 4,
     overflow: 'hidden',
@@ -226,7 +257,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   timeText: {
-    color: '#B3B3B3',
+    // color se aplica dinámicamente
     fontSize: 10,
     fontWeight: '400',
   },

@@ -156,6 +156,86 @@ export class UserService {
       throw new Error('Error de conexión. Verifica tu conexión a internet.');
     }
   }
+
+  /**
+   * Obtiene las preferencias del usuario
+   */
+  static async getPreferences(): Promise<any> {
+    try {
+      const token = await getAuthToken();
+      
+      if (!token) {
+        throw new Error('No hay token de autenticación. Por favor, inicia sesión nuevamente.');
+      }
+
+      const response = await ApiClient.get(
+        ENDPOINTS.USERS.GET_PREFERENCES,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      return response.data?.preferences || response.data || {};
+    } catch (error) {
+      console.error('UserService.getPreferences - Error:', error);
+      if (error instanceof ApiError) {
+        const errorMessage = error.data?.error || 
+                            error.data?.message || 
+                            error.message || 
+                            'Error al obtener las preferencias';
+        throw new Error(errorMessage);
+      }
+      throw new Error('Error de conexión. Verifica tu conexión a internet.');
+    }
+  }
+
+  /**
+   * Actualiza las preferencias del usuario
+   */
+  static async updatePreferences(preferences: Partial<any>): Promise<any> {
+    try {
+      const token = await getAuthToken();
+      
+      if (!token) {
+        throw new Error('No hay token de autenticación. Por favor, inicia sesión nuevamente.');
+      }
+
+      console.log('UserService.updatePreferences - Sending:', preferences);
+
+      const response = await ApiClient.put(
+        ENDPOINTS.USERS.PREFERENCES,
+        preferences,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log('UserService.updatePreferences - Response:', response.data);
+
+      // El backend devuelve { message, preferences }
+      const responseData = response.data;
+      if (responseData?.preferences) {
+        return responseData.preferences;
+      }
+      
+      // Si no viene en preferences, devolver todo el response.data
+      return responseData || {};
+    } catch (error) {
+      console.error('UserService.updatePreferences - Error:', error);
+      if (error instanceof ApiError) {
+        const errorMessage = error.data?.error || 
+                            error.data?.message || 
+                            error.message || 
+                            'Error al actualizar las preferencias';
+        throw new Error(errorMessage);
+      }
+      throw new Error('Error de conexión. Verifica tu conexión a internet.');
+    }
+  }
 }
 
 export default UserService;

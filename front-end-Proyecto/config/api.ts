@@ -119,6 +119,8 @@ export const ENDPOINTS = {
     PROFILE: '/api/users/profile',
     UPDATE_PROFILE: '/api/users/profile',
     CHANGE_PASSWORD: '/api/users/change-password',
+    PREFERENCES: '/api/users/preferences',
+    GET_PREFERENCES: '/api/users/preferences',
   },
   MUSIC: {
     SONGS: '/songs',
@@ -168,7 +170,7 @@ export const ENDPOINTS = {
     CREATE_PLAYLIST: '/api/library/playlists',
     UPDATE_PLAYLIST: (id: number) => `/api/library/playlists/${id}`,
     DELETE_PLAYLIST: (id: number) => `/api/library/playlists/${id}`,
-    ADD_SONG_TO_PLAYLIST: (id: number) => `/api/library/playlists/${id}/songs`,
+    ADD_SONG_TO_PLAYLIST: (id: number | string) => `/api/library/playlists/${id}/songs`,
     REMOVE_SONG_FROM_PLAYLIST: (playlistId: number, songId: number) => 
       `/api/library/playlists/${playlistId}/songs/${songId}`,
     LIKED_SONGS: '/api/library/liked-songs',

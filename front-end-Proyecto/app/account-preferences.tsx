@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   AVAILABLE_LANGUAGES,
   NOTIFICATION_DESCRIPTIONS,
@@ -22,6 +23,7 @@ import {
   ThemeMode,
   Language,
   NotificationType,
+  UserPreferences,
 } from '@/models/preferences';
 // Importar expo-notifications de forma condicional
 let Notifications: typeof import('expo-notifications') | null = null;
@@ -36,14 +38,134 @@ const isMobile = width < 768;
 const maxContentWidth = 800; // Ancho máximo del contenido en desktop
 
 export default function AccountPreferencesScreen() {
-  const { preferences, updatePreferences } = usePreferences();
+  const { preferences, updatePreferences, currentTheme } = usePreferences();
+  const { t, language } = useTranslation();
+  const [localPreferences, setLocalPreferences] = useState<UserPreferences>(() => {
+    console.log('🔄 [account-preferences] Initializing localPreferences:', preferences);
+    return preferences;
+  });
+  
+  // Estado para modales personalizados en web
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [pressedButton, setPressedButton] = useState<string | null>(null);
+  
+  // Sincronizar preferencias locales con el contexto cuando cambien
+  // Usar useRef para rastrear el último valor y evitar comparaciones innecesarias
+  const prevPreferencesRef = useRef<string>('');
+  const isUpdatingRef = useRef<boolean>(false);
+  
+  useEffect(() => {
+    // Si estamos actualizando manualmente, no sincronizar desde el contexto
+    if (isUpdatingRef.current) {
+      console.log('⏭️ [account-preferences] Update in progress, skipping sync');
+      return;
+    }
+    
+    const currentPrefsStr = JSON.stringify(preferences);
+    const prevPrefsStr = prevPreferencesRef.current;
+    
+    console.log('🔄 [account-preferences] Preferences changed from context:', preferences);
+    console.log('🔄 [account-preferences] Current localPreferences:', localPreferences);
+    
+    // Solo actualizar si realmente cambió (comparar strings serializados)
+    if (currentPrefsStr !== prevPrefsStr) {
+      console.log('✅ [account-preferences] Updating localPreferences from context');
+      prevPreferencesRef.current = currentPrefsStr;
+      setLocalPreferences(preferences);
+    } else {
+      console.log('⏭️ [account-preferences] No update needed, preferences are the same');
+    }
+  }, [preferences]);
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
   const tintColor = useThemeColor({}, 'tint');
+  const backgroundColor = useThemeColor({}, 'background');
   const [notificationPermission, setNotificationPermission] = useState<boolean | null>(null);
   
+  // Paleta de colores de Adobe Color
+  const colorPalette = {
+    purple: '#7129F2',
+    magenta: '#F229EE',
+    blue: '#2F29F2',
+    pink: '#F22976', // Color principal ya en uso
+    lightPurple: '#CC7AF2',
+    black: '#000000',
+    white: '#FFFFFF',
+  };
+  
   // Color del proyecto para los switches
-  const switchActiveColor = '#F22976';
+  const switchActiveColor = colorPalette.pink;
+  
+  // Estilos dinámicos basados en el tema
+  const isDark = currentTheme === 'dark';
+  console.log('🎨 [account-preferences] isDark:', isDark, 'currentTheme:', currentTheme);
+  const borderColor = isDark ? '#333333' : '#CC7AF240'; // Borde más visible en dark
+  const optionButtonBg = backgroundColor; // Usar el color de fondo del tema
+  const optionButtonBorder = isDark ? '#333333' : '#CC7AF280'; // Borde más visible en dark
+  const modalBg = backgroundColor; // Usar el color de fondo del tema
+  const modalBorder = isDark ? '#333333' : '#CC7AF280'; // Borde más visible en dark
+  const modalOptionBg = backgroundColor; // Usar el color de fondo del tema
+  const modalOptionBorder = isDark ? '#333333' : '#CC7AF280'; // Borde más visible en dark
+  const modalCancelBg = isDark ? '#1E1E1E' : '#CC7AF215'; // Oscuro en dark, claro en light
+  const switchOptionBg = isDark ? '#000000' : backgroundColor; // Negro en dark, fondo del tema en light
+  const switchOptionBorder = isDark ? '#333333' : '#CC7AF280'; // Borde más visible en dark
+  console.log('🎨 [account-preferences] switchOptionBg:', switchOptionBg, 'isDark:', isDark);
+  
+  // Colores para estados de presión (press states)
+  const getPressColor = (isDark: boolean) => {
+    if (isDark) {
+      return colorPalette.lightPurple + '20'; // 20% opacity para efecto sutil
+    }
+    return colorPalette.purple + '15'; // 15% opacity para tema claro
+  };
+  
+  const dynamicStyles = useMemo(() => ({
+    container: {
+      backgroundColor,
+    },
+    header: {
+      backgroundColor,
+      borderBottomColor: borderColor,
+    },
+    optionButton: {
+      backgroundColor: optionButtonBg,
+      borderColor: optionButtonBorder,
+    },
+    modalContent: {
+      backgroundColor: modalBg,
+      borderColor: modalBorder,
+    },
+    modalOption: {
+      backgroundColor: modalOptionBg,
+      borderColor: modalOptionBorder,
+    },
+    modalCancelButton: {
+      backgroundColor: modalCancelBg,
+    },
+    switchOption: {
+      backgroundColor: switchOptionBg,
+      borderColor: switchOptionBorder,
+    },
+    optionLabel: {
+      color: textColor,
+    },
+    switchLabel: {
+      color: isDark ? '#FFFFFF' : textColor, // Blanco en dark, negro en light
+    },
+    switchDescription: {
+      color: isDark ? '#FFFFFF' : '#666666', // Blanco en dark para mejor contraste
+    },
+    optionValue: {
+      color: isDark ? '#E0E0E0' : '#666666', // Gris más claro y visible en dark
+    },
+    sectionTitle: {
+      color: textColor, // Blanco en dark, negro en light
+    },
+    sectionDescription: {
+      color: isDark ? '#E0E0E0' : '#666666', // Gris más claro y visible en dark
+    },
+  }), [backgroundColor, textColor, borderColor, optionButtonBg, optionButtonBorder, modalBg, modalBorder, modalOptionBg, modalOptionBorder, modalCancelBg, switchOptionBg, switchOptionBorder, isDark]);
   
   // Debug: Log preferences cuando cambian
   useEffect(() => {
@@ -125,28 +247,81 @@ export default function AccountPreferencesScreen() {
 
   const handleLanguageChange = async (language: Language) => {
     try {
-      console.log('Changing language to:', language);
-      await updatePreferences({ language });
-      console.log('Language changed successfully');
+      isUpdatingRef.current = true;
+      console.log('🔄 [account-preferences] Changing language to:', language);
+      console.log('🔄 [account-preferences] Current localPreferences before:', localPreferences);
+      
+      // Actualizar preferencias locales PRIMERO para feedback inmediato
+      const updatedLocal: UserPreferences = { 
+        ...localPreferences, 
+        language 
+      };
+      console.log('✅ [account-preferences] New localPreferences:', updatedLocal);
+      setLocalPreferences(updatedLocal);
+      
+      // Actualizar el contexto DESPUÉS
+      try {
+        console.log('💾 [account-preferences] Calling updatePreferences from context...');
+        await updatePreferences({ language });
+        console.log('✅ [account-preferences] updatePreferences completed');
+      } catch (prefError) {
+        console.error('❌ [account-preferences] Error in updatePreferences:', prefError);
+        // Revertir cambio local si falla
+        setLocalPreferences(localPreferences);
+      } finally {
+        isUpdatingRef.current = false;
+      }
+      
+      // Forzar re-render inmediato
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Mostrar mensaje informativo
       const languageName = AVAILABLE_LANGUAGES.find(lang => lang.code === language)?.name || language;
-      Alert.alert(
-        'Idioma actualizado',
-        `El idioma se ha cambiado a ${languageName}. La preferencia se ha guardado correctamente.\n\nNota: La traducción completa de la interfaz aún está en desarrollo.`,
-        [{ text: 'Entendido' }]
-      );
+      if (Platform.OS !== 'web') {
+        Alert.alert(
+          'Idioma actualizado',
+          `El idioma se ha cambiado a ${languageName}.\n\nNota: La traducción completa de la interfaz aún está en desarrollo.`,
+          [{ text: 'Entendido' }]
+        );
+      }
     } catch (error) {
-      console.error('Error changing language:', error);
-      Alert.alert('Error', 'No se pudo cambiar el idioma. Por favor, intenta nuevamente.');
+      isUpdatingRef.current = false;
+      console.error('❌ [account-preferences] Error changing language:', error);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo cambiar el idioma. Por favor, intenta nuevamente.');
+      }
     }
   };
 
   const handleThemeChange = async (theme: ThemeMode) => {
     try {
-      console.log('Changing theme to:', theme);
-      await updatePreferences({ theme });
-      console.log('Theme changed successfully');
+      isUpdatingRef.current = true;
+      console.log('🔄 [account-preferences] Changing theme to:', theme);
+      console.log('🔄 [account-preferences] Current localPreferences before:', localPreferences);
+      
+      // Actualizar preferencias locales PRIMERO para feedback inmediato
+      const updatedLocal: UserPreferences = { 
+        ...localPreferences, 
+        theme 
+      };
+      console.log('✅ [account-preferences] New localPreferences:', updatedLocal);
+      setLocalPreferences(updatedLocal);
+      
+      // Actualizar el contexto DESPUÉS para que el tema se aplique
+      try {
+        console.log('💾 [account-preferences] Calling updatePreferences from context...');
+        await updatePreferences({ theme });
+        console.log('✅ [account-preferences] updatePreferences completed');
+      } catch (prefError) {
+        console.error('❌ [account-preferences] Error in updatePreferences:', prefError);
+        // Revertir cambio local si falla
+        setLocalPreferences(localPreferences);
+      } finally {
+        isUpdatingRef.current = false;
+      }
+      
+      // Forzar re-render inmediato
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Forzar actualización del tema
       const themeNames: Record<ThemeMode, string> = {
@@ -157,14 +332,19 @@ export default function AccountPreferencesScreen() {
       
       // El tema se aplicará automáticamente a través del contexto
       // Solo mostramos un mensaje de confirmación
-      Alert.alert(
-        'Tema actualizado',
-        `El tema se ha cambiado a "${themeNames[theme]}". Los cambios se aplicarán inmediatamente.`,
-        [{ text: 'Entendido' }]
-      );
+      if (Platform.OS !== 'web') {
+        Alert.alert(
+          'Tema actualizado',
+          `El tema se ha cambiado a "${themeNames[theme]}". Los cambios se aplicarán inmediatamente.`,
+          [{ text: 'Entendido' }]
+        );
+      }
     } catch (error) {
-      console.error('Error changing theme:', error);
-      Alert.alert('Error', 'No se pudo cambiar el tema. Por favor, intenta nuevamente.');
+      isUpdatingRef.current = false;
+      console.error('❌ [account-preferences] Error changing theme:', error);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo cambiar el tema. Por favor, intenta nuevamente.');
+      }
     }
   };
 
@@ -172,6 +352,7 @@ export default function AccountPreferencesScreen() {
     try {
       console.log('Changing explicit content to:', value);
       await updatePreferences({ explicitContent: value });
+      setLocalPreferences(prev => ({ ...prev, explicitContent: value }));
       console.log('Explicit content setting changed successfully');
     } catch (error) {
       console.error('Error changing explicit content:', error);
@@ -186,12 +367,14 @@ export default function AccountPreferencesScreen() {
         return;
       }
       console.log('Changing notification', type, 'to:', value);
+      const updatedNotifications = {
+        ...localPreferences.notifications,
+        [type]: value,
+      };
       await updatePreferences({
-        notifications: {
-          ...preferences.notifications,
-          [type]: value,
-        },
+        notifications: updatedNotifications,
       });
+      setLocalPreferences(prev => ({ ...prev, notifications: updatedNotifications }));
       console.log('Notification setting changed successfully');
     } catch (error) {
       console.error('Error changing notification:', error);
@@ -199,15 +382,17 @@ export default function AccountPreferencesScreen() {
     }
   };
 
-  const handlePrivacyChange = async (key: keyof typeof preferences.privacy, value: boolean) => {
+  const handlePrivacyChange = async (key: keyof typeof localPreferences.privacy, value: boolean) => {
     try {
       console.log('Changing privacy', key, 'to:', value);
+      const updatedPrivacy = {
+        ...localPreferences.privacy,
+        [key]: value,
+      };
       await updatePreferences({
-        privacy: {
-          ...preferences.privacy,
-          [key]: value,
-        },
+        privacy: updatedPrivacy,
       });
+      setLocalPreferences(prev => ({ ...prev, privacy: updatedPrivacy }));
       console.log('Privacy setting changed successfully');
     } catch (error) {
       console.error('Error changing privacy:', error);
@@ -216,66 +401,104 @@ export default function AccountPreferencesScreen() {
   };
 
   const showLanguagePicker = () => {
-    const buttons = AVAILABLE_LANGUAGES.map((lang) => ({
-      text: lang.name,
-      onPress: () => {
-        console.log('Language selected:', lang.name);
-        handleLanguageChange(lang.code);
-      },
-      style: 'default' as const,
-    }));
+    console.log('🌐 [account-preferences] showLanguagePicker called');
+    console.log('🌐 [account-preferences] Current language:', localPreferences.language);
+    console.log('🌐 [account-preferences] Platform.OS:', Platform.OS);
     
-    buttons.push({ text: 'Cancelar', style: 'cancel' as const });
+    // En web, usar modal personalizado
+    if (Platform.OS === 'web') {
+      console.log('🌐 [account-preferences] Opening language modal for web');
+      setShowLanguageModal(true);
+      return;
+    }
+    
+    // En móvil, usar Alert.alert
+    const availableLanguages = AVAILABLE_LANGUAGES.filter(lang => lang.code === 'es' || lang.code === 'en');
+    
+    const buttons = availableLanguages.map((lang) => {
+      const isSelected = localPreferences.language === lang.code;
+      return {
+        text: isSelected ? `✓ ${lang.name}` : lang.name,
+        onPress: () => {
+          console.log('🌐 [account-preferences] Language button pressed:', lang.name, lang.code);
+          if (!isSelected) {
+            handleLanguageChange(lang.code);
+          }
+        },
+        style: 'default' as const,
+      };
+    });
+    
+    buttons.push({ text: t('common.cancel'), style: 'cancel' as 'cancel' });
     
     Alert.alert(
-      'Seleccionar idioma',
-      'Elige tu idioma preferido',
+      t('accountPreferences.language'),
+      `${t('accountPreferences.language')}: ${getCurrentLanguageName()}\n\n${t('accountPreferences.languageDescription')}:`,
       buttons
     );
   };
 
   const showThemePicker = () => {
+    console.log('🎨 [account-preferences] showThemePicker called');
+    console.log('🎨 [account-preferences] Current theme:', localPreferences.theme);
+    
+    // En web, usar modal personalizado
+    if (Platform.OS === 'web') {
+      setShowThemeModal(true);
+      return;
+    }
+    
+    // En móvil, usar Alert.alert
     const themes: { label: string; value: ThemeMode; description: string }[] = [
-      { label: 'Claro', value: 'light', description: 'Tema claro siempre activo' },
-      { label: 'Oscuro', value: 'dark', description: 'Tema oscuro siempre activo' },
-      { label: 'Automático', value: 'auto', description: 'Sigue la configuración del sistema' },
+      { label: t('theme.light'), value: 'light', description: t('theme.lightDescription') },
+      { label: t('theme.dark'), value: 'dark', description: t('theme.darkDescription') },
+      { label: t('theme.auto'), value: 'auto', description: t('theme.autoDescription') },
     ];
 
-    const buttons = themes.map((theme) => ({
-      text: `${theme.label} - ${theme.description}`,
-      onPress: () => {
-        console.log('Theme selected:', theme.label);
-        handleThemeChange(theme.value);
-      },
-      style: 'default' as const,
-    }));
+    const buttons = themes.map((theme) => {
+      const isSelected = localPreferences.theme === theme.value;
+      return {
+        text: isSelected ? `✓ ${theme.label} - ${theme.description}` : `${theme.label} - ${theme.description}`,
+        onPress: () => {
+          console.log('🎨 [account-preferences] Theme button pressed:', theme.label, theme.value);
+          if (!isSelected) {
+            handleThemeChange(theme.value);
+          }
+        },
+        style: 'default' as const,
+      };
+    });
     
-    buttons.push({ text: 'Cancelar', style: 'cancel' as const });
+    buttons.push({ text: t('common.cancel'), style: 'cancel' as 'cancel' });
 
     Alert.alert(
-      'Seleccionar tema',
-      'Elige cómo quieres que se vea la aplicación',
+      t('accountPreferences.theme'),
+      `${t('accountPreferences.theme')}: ${getCurrentThemeName()}\n\n${t('accountPreferences.appearanceDescription')}:`,
       buttons
     );
   };
 
   const getCurrentLanguageName = () => {
-    return AVAILABLE_LANGUAGES.find((lang) => lang.code === preferences.language)?.name || 'Español';
+    const name = AVAILABLE_LANGUAGES.find((lang) => lang.code === localPreferences.language)?.name || t('language.spanish');
+    console.log('🌐 [account-preferences] getCurrentLanguageName:', name, 'for language:', localPreferences.language);
+    return name;
   };
 
   const getCurrentThemeName = () => {
     const themes: Record<ThemeMode, string> = {
-      light: 'Claro',
-      dark: 'Oscuro',
-      auto: 'Automático',
+      light: t('theme.light'),
+      dark: t('theme.dark'),
+      auto: t('theme.auto'),
     };
-    return themes[preferences.theme];
+    const name = themes[localPreferences.theme];
+    console.log('🎨 [account-preferences] getCurrentThemeName:', name, 'for theme:', localPreferences.theme);
+    return name;
   };
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: '#121212' }]}>
+    <ThemedView style={[styles.container, dynamicStyles.container]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: '#121212' }, isMobile && styles.headerMobile]}>
+      <ThemedView style={[styles.header, dynamicStyles.header, isMobile && styles.headerMobile]}>
         <View style={[styles.headerContent, !isMobile && styles.headerContentDesktop]}>
           <View style={styles.headerLeft}>
             <TouchableOpacity 
@@ -285,11 +508,11 @@ export default function AccountPreferencesScreen() {
               <Ionicons name="arrow-back" size={isMobile ? 24 : 28} color={textColor} />
             </TouchableOpacity>
             <ThemedText style={[styles.headerTitle, isMobile && styles.headerTitleMobile]}>
-              Preferencias de cuenta
+              {t('accountPreferences.title')}
             </ThemedText>
           </View>
         </View>
-      </View>
+      </ThemedView>
 
       <ScrollView
         style={styles.scrollView}
@@ -300,21 +523,38 @@ export default function AccountPreferencesScreen() {
         <View style={[styles.mainContent, !isMobile && styles.mainContentDesktop]}>
         {/* Sección de Idioma */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Idioma</ThemedText>
-          <ThemedText style={styles.sectionDescription}>
-            Elige el idioma en el que quieres usar la aplicación
+          <ThemedText style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>{t('accountPreferences.language')}</ThemedText>
+          <ThemedText style={[styles.sectionDescription, dynamicStyles.sectionDescription]}>
+            {t('accountPreferences.languageDescription')}
           </ThemedText>
           <TouchableOpacity
-            style={styles.optionButton}
-            onPress={showLanguagePicker}
-            activeOpacity={0.7}
+            style={[
+              styles.optionButton,
+              dynamicStyles.optionButton,
+              pressedButton === 'language' && styles.optionButtonPressed
+            ]}
+            onPress={() => {
+              console.log('🌐 [account-preferences] Language button touched');
+              showLanguagePicker();
+            }}
+            onPressIn={() => setPressedButton('language')}
+            onPressOut={() => setPressedButton(null)}
+            activeOpacity={0.6}
           >
             <View style={styles.optionLeft}>
               <Ionicons name="language-outline" size={20} color={textColor} />
-              <ThemedText style={styles.optionLabel}>Idioma</ThemedText>
+              <ThemedText style={[styles.optionLabel, dynamicStyles.optionLabel]}>{t('accountPreferences.language')}</ThemedText>
             </View>
             <View style={styles.optionRight}>
-              <ThemedText style={styles.optionValue}>{getCurrentLanguageName()}</ThemedText>
+              <View style={styles.optionValueContainer}>
+                <ThemedText 
+                  key={`language-${localPreferences.language}`}
+                  style={[styles.optionValue, styles.optionValueSelected, dynamicStyles.optionValue]}
+                >
+                  {getCurrentLanguageName()}
+                </ThemedText>
+                <Ionicons name="checkmark-circle" size={18} color="#F22976" style={{ marginLeft: 6 }} />
+              </View>
               <Ionicons name="chevron-forward" size={20} color={iconColor} />
             </View>
           </TouchableOpacity>
@@ -322,21 +562,38 @@ export default function AccountPreferencesScreen() {
 
         {/* Sección de Tema */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Apariencia</ThemedText>
-          <ThemedText style={styles.sectionDescription}>
-            Personaliza cómo se ve la aplicación
+          <ThemedText style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>{t('accountPreferences.appearance')}</ThemedText>
+          <ThemedText style={[styles.sectionDescription, dynamicStyles.sectionDescription]}>
+            {t('accountPreferences.appearanceDescription')}
           </ThemedText>
           <TouchableOpacity
-            style={styles.optionButton}
-            onPress={showThemePicker}
-            activeOpacity={0.7}
+            style={[
+              styles.optionButton,
+              dynamicStyles.optionButton,
+              pressedButton === 'theme' && styles.optionButtonPressed
+            ]}
+            onPress={() => {
+              console.log('🎨 [account-preferences] Theme button touched');
+              showThemePicker();
+            }}
+            onPressIn={() => setPressedButton('theme')}
+            onPressOut={() => setPressedButton(null)}
+            activeOpacity={0.6}
           >
             <View style={styles.optionLeft}>
               <Ionicons name="color-palette-outline" size={20} color={textColor} />
-              <ThemedText style={styles.optionLabel}>Tema</ThemedText>
+              <ThemedText style={[styles.optionLabel, dynamicStyles.optionLabel]}>{t('accountPreferences.theme')}</ThemedText>
             </View>
             <View style={styles.optionRight}>
-              <ThemedText style={styles.optionValue}>{getCurrentThemeName()}</ThemedText>
+              <View style={styles.optionValueContainer}>
+                <ThemedText 
+                  key={`theme-${localPreferences.theme}`}
+                  style={[styles.optionValue, styles.optionValueSelected, dynamicStyles.optionValue]}
+                >
+                  {getCurrentThemeName()}
+                </ThemedText>
+                <Ionicons name="checkmark-circle" size={18} color="#F22976" style={{ marginLeft: 6 }} />
+              </View>
               <Ionicons name="chevron-forward" size={20} color={iconColor} />
             </View>
           </TouchableOpacity>
@@ -344,31 +601,29 @@ export default function AccountPreferencesScreen() {
 
         {/* Sección de Contenido Explícito */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Contenido</ThemedText>
-          <ThemedText style={styles.sectionDescription}>
-            Controla qué tipo de contenido puedes ver
+          <ThemedText style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>{t('accountPreferences.content')}</ThemedText>
+          <ThemedText style={[styles.sectionDescription, dynamicStyles.sectionDescription]}>
+            {t('accountPreferences.contentDescription')}
           </ThemedText>
-          <View style={styles.switchOption}>
+          <View style={[styles.switchOption, dynamicStyles.switchOption]}>
             <View style={styles.switchLeft}>
               <Ionicons name="warning-outline" size={20} color={textColor} />
               <View style={styles.switchTextContainer}>
-                <ThemedText style={styles.switchLabel}>Permitir contenido explícito</ThemedText>
-                <ThemedText style={styles.switchDescription}>
-                  {preferences.explicitContent
-                    ? 'Puedes ver y reproducir contenido marcado como explícito'
-                    : 'El contenido marcado como explícito está oculto'}
+                <ThemedText style={[styles.switchLabel, dynamicStyles.switchLabel]}>{t('accountPreferences.allowExplicit')}</ThemedText>
+                <ThemedText style={[styles.switchDescription, dynamicStyles.switchDescription]}>
+                  {t('accountPreferences.allowExplicitDescription')}
                 </ThemedText>
               </View>
             </View>
-            <Switch
-              key={`explicit-${preferences?.explicitContent}`}
-              value={preferences?.explicitContent ?? false}
+              <Switch
+              key={`explicit-${localPreferences?.explicitContent}`}
+              value={localPreferences?.explicitContent ?? false}
               onValueChange={(value) => {
                 console.log('Explicit content switch toggled:', value);
                 handleExplicitContentChange(value);
               }}
               trackColor={{ false: '#404040', true: switchActiveColor }}
-              thumbColor={preferences?.explicitContent ? switchActiveColor : '#B3B3B3'}
+              thumbColor={localPreferences?.explicitContent ? switchActiveColor : '#B3B3B3'}
               ios_backgroundColor="#404040"
             />
           </View>
@@ -376,9 +631,9 @@ export default function AccountPreferencesScreen() {
 
         {/* Sección de Notificaciones */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Notificaciones</ThemedText>
-          <ThemedText style={styles.sectionDescription}>
-            Elige qué notificaciones quieres recibir
+          <ThemedText style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>{t('accountPreferences.notifications')}</ThemedText>
+          <ThemedText style={[styles.sectionDescription, dynamicStyles.sectionDescription]}>
+            {t('accountPreferences.notificationsDescription')}
           </ThemedText>
           {notificationPermission === false && (
             <View style={styles.warningBox}>
@@ -395,7 +650,7 @@ export default function AccountPreferencesScreen() {
             </View>
           )}
           {(Object.keys(NOTIFICATION_DESCRIPTIONS) as NotificationType[]).map((type) => (
-            <View key={type} style={styles.switchOption}>
+            <View key={type} style={[styles.switchOption, dynamicStyles.switchOption]}>
               <View style={styles.switchLeft}>
                 <Ionicons 
                   name={
@@ -408,26 +663,26 @@ export default function AccountPreferencesScreen() {
                   color={textColor} 
                 />
                 <View style={styles.switchTextContainer}>
-                  <ThemedText style={styles.switchLabel}>
+                  <ThemedText style={[styles.switchLabel, dynamicStyles.switchLabel]}>
                     {type === 'new_releases' ? 'Nuevos lanzamientos' :
                      type === 'playlist_updates' ? 'Actualizaciones de playlists' :
                      type === 'artist_updates' ? 'Actualizaciones de artistas' :
                      'Recomendaciones'}
                   </ThemedText>
-                  <ThemedText style={styles.switchDescription}>
+                  <ThemedText style={[styles.switchDescription, dynamicStyles.switchDescription]}>
                     {NOTIFICATION_DESCRIPTIONS[type]}
                   </ThemedText>
                 </View>
               </View>
               <Switch
-                key={`notification-${type}-${preferences?.notifications?.[type]}`}
-                value={preferences?.notifications?.[type] ?? false}
+                key={`notification-${type}-${localPreferences?.notifications?.[type]}`}
+                value={localPreferences?.notifications?.[type] ?? false}
                 onValueChange={(value) => {
                   console.log('Notification switch toggled:', type, value);
                   handleNotificationChange(type, value);
                 }}
                 trackColor={{ false: '#404040', true: switchActiveColor }}
-                thumbColor={preferences?.notifications?.[type] ? switchActiveColor : '#B3B3B3'}
+                thumbColor={localPreferences?.notifications?.[type] ? switchActiveColor : '#B3B3B3'}
                 ios_backgroundColor="#404040"
                 disabled={notificationPermission === false}
               />
@@ -437,73 +692,73 @@ export default function AccountPreferencesScreen() {
 
         {/* Sección de Privacidad */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Privacidad</ThemedText>
-          <ThemedText style={styles.sectionDescription}>
+          <ThemedText style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Privacidad</ThemedText>
+          <ThemedText style={[styles.sectionDescription, dynamicStyles.sectionDescription]}>
             Controla qué información compartes con otros usuarios
           </ThemedText>
-          <View style={styles.switchOption}>
+          <View style={[styles.switchOption, dynamicStyles.switchOption]}>
             <View style={styles.switchLeft}>
               <Ionicons name="time-outline" size={20} color={textColor} />
               <View style={styles.switchTextContainer}>
-                <ThemedText style={styles.switchLabel}>Mostrar actividad reciente</ThemedText>
-                <ThemedText style={styles.switchDescription}>
+                <ThemedText style={[styles.switchLabel, dynamicStyles.switchLabel]}>Mostrar actividad reciente</ThemedText>
+                <ThemedText style={[styles.switchDescription, dynamicStyles.switchDescription]}>
                   {PRIVACY_DESCRIPTIONS.showRecentActivity}
                 </ThemedText>
               </View>
             </View>
             <Switch
-              key={`privacy-activity-${preferences?.privacy?.showRecentActivity}`}
-              value={preferences?.privacy?.showRecentActivity ?? false}
+              key={`privacy-activity-${localPreferences?.privacy?.showRecentActivity}`}
+              value={localPreferences?.privacy?.showRecentActivity ?? false}
               onValueChange={(value) => {
                 console.log('Privacy switch toggled: showRecentActivity', value);
                 handlePrivacyChange('showRecentActivity', value);
               }}
               trackColor={{ false: '#404040', true: switchActiveColor }}
-              thumbColor={preferences?.privacy?.showRecentActivity ? switchActiveColor : '#B3B3B3'}
+              thumbColor={localPreferences?.privacy?.showRecentActivity ? switchActiveColor : '#B3B3B3'}
               ios_backgroundColor="#404040"
             />
           </View>
-          <View style={styles.switchOption}>
+          <View style={[styles.switchOption, dynamicStyles.switchOption]}>
             <View style={styles.switchLeft}>
               <Ionicons name="musical-note-outline" size={20} color={textColor} />
               <View style={styles.switchTextContainer}>
-                <ThemedText style={styles.switchLabel}>Mostrar historial de reproducción</ThemedText>
-                <ThemedText style={styles.switchDescription}>
+                <ThemedText style={[styles.switchLabel, dynamicStyles.switchLabel]}>Mostrar historial de reproducción</ThemedText>
+                <ThemedText style={[styles.switchDescription, dynamicStyles.switchDescription]}>
                   {PRIVACY_DESCRIPTIONS.showListeningHistory}
                 </ThemedText>
               </View>
             </View>
             <Switch
-              key={`privacy-history-${preferences?.privacy?.showListeningHistory}`}
-              value={preferences?.privacy?.showListeningHistory ?? false}
+              key={`privacy-history-${localPreferences?.privacy?.showListeningHistory}`}
+              value={localPreferences?.privacy?.showListeningHistory ?? false}
               onValueChange={(value) => {
                 console.log('Privacy switch toggled: showListeningHistory', value);
                 handlePrivacyChange('showListeningHistory', value);
               }}
               trackColor={{ false: '#404040', true: switchActiveColor }}
-              thumbColor={preferences?.privacy?.showListeningHistory ? switchActiveColor : '#B3B3B3'}
+              thumbColor={localPreferences?.privacy?.showListeningHistory ? switchActiveColor : '#B3B3B3'}
               ios_backgroundColor="#404040"
             />
           </View>
-          <View style={styles.switchOption}>
+          <View style={[styles.switchOption, dynamicStyles.switchOption]}>
             <View style={styles.switchLeft}>
               <Ionicons name="library-outline" size={20} color={textColor} />
               <View style={styles.switchTextContainer}>
-                <ThemedText style={styles.switchLabel}>Mostrar playlists</ThemedText>
-                <ThemedText style={styles.switchDescription}>
+                <ThemedText style={[styles.switchLabel, dynamicStyles.switchLabel]}>Mostrar playlists</ThemedText>
+                <ThemedText style={[styles.switchDescription, dynamicStyles.switchDescription]}>
                   {PRIVACY_DESCRIPTIONS.showPlaylists}
                 </ThemedText>
               </View>
             </View>
             <Switch
-              key={`privacy-playlists-${preferences?.privacy?.showPlaylists}`}
-              value={preferences?.privacy?.showPlaylists ?? false}
+              key={`privacy-playlists-${localPreferences?.privacy?.showPlaylists}`}
+              value={localPreferences?.privacy?.showPlaylists ?? false}
               onValueChange={(value) => {
                 console.log('Privacy switch toggled: showPlaylists', value);
                 handlePrivacyChange('showPlaylists', value);
               }}
               trackColor={{ false: '#404040', true: switchActiveColor }}
-              thumbColor={preferences?.privacy?.showPlaylists ? switchActiveColor : '#B3B3B3'}
+              thumbColor={localPreferences?.privacy?.showPlaylists ? switchActiveColor : '#B3B3B3'}
               ios_backgroundColor="#404040"
             />
           </View>
@@ -511,6 +766,160 @@ export default function AccountPreferencesScreen() {
         </View>
         {/* Fin del contenedor principal */}
       </ScrollView>
+
+      {/* Modal personalizado para selección de idioma en web */}
+      {Platform.OS === 'web' && showLanguageModal && (
+        <View style={styles.modalOverlay}>
+          <ThemedView style={[styles.modalContent, dynamicStyles.modalContent]}>
+            <ThemedText style={styles.modalTitle}>{t('accountPreferences.language')}</ThemedText>
+            <ThemedText style={styles.modalDescription}>
+              {t('accountPreferences.language')}: {getCurrentLanguageName()}
+            </ThemedText>
+            <View style={styles.modalOptions}>
+              {AVAILABLE_LANGUAGES.filter(lang => lang.code === 'es' || lang.code === 'en').map((lang) => {
+                const isSelected = localPreferences.language === lang.code;
+                return (
+                  <TouchableOpacity
+                    key={lang.code}
+                    style={[
+                      styles.modalOption,
+                      dynamicStyles.modalOption,
+                      isSelected && styles.modalOptionSelected,
+                      pressedButton === `lang-${lang.code}` && styles.modalOptionPressed
+                    ]}
+                    onPressIn={() => setPressedButton(`lang-${lang.code}`)}
+                    onPressOut={() => setPressedButton(null)}
+                    onPress={async () => {
+                      console.log('🌐 [account-preferences] Language selected in modal:', lang.code);
+                      console.log('🌐 [account-preferences] Is currently selected?', isSelected);
+                      if (!isSelected) {
+                        console.log('🌐 [account-preferences] Calling handleLanguageChange...');
+                        try {
+                          await handleLanguageChange(lang.code);
+                          console.log('🌐 [account-preferences] handleLanguageChange completed');
+                          setShowLanguageModal(false);
+                        } catch (error) {
+                          console.error('🌐 [account-preferences] Error in handleLanguageChange:', error);
+                          setShowLanguageModal(false);
+                        }
+                      } else {
+                        console.log('⏭️ [account-preferences] Language already selected, closing modal');
+                        setShowLanguageModal(false);
+                      }
+                    }}
+                  >
+                    <ThemedText style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {isSelected ? '✓ ' : ''}{lang.name}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.modalCancelButton,
+                dynamicStyles.modalCancelButton,
+                pressedButton === 'cancel-language' && styles.modalCancelButtonPressed
+              ]}
+              onPressIn={() => setPressedButton('cancel-language')}
+              onPressOut={() => setPressedButton(null)}
+              onPress={() => setShowLanguageModal(false)}
+            >
+              <ThemedText style={styles.modalCancelText}>{t('common.cancel')}</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
+        </View>
+      )}
+
+      {/* Modal personalizado para selección de tema en web */}
+      {Platform.OS === 'web' && showThemeModal && (
+        <View 
+          style={styles.modalOverlay}
+          onStartShouldSetResponder={() => true}
+          onResponderGrant={() => setShowThemeModal(false)}
+        >
+          <ThemedView 
+            style={[styles.modalContent, dynamicStyles.modalContent]}
+            onStartShouldSetResponder={() => false}
+          >
+            <ThemedText style={styles.modalTitle}>{t('accountPreferences.theme')}</ThemedText>
+            <ThemedText style={styles.modalDescription}>
+              {t('accountPreferences.theme')}: {getCurrentThemeName()}
+            </ThemedText>
+            <View style={styles.modalOptions}>
+              {[
+                { label: t('theme.light'), value: 'light' as ThemeMode, description: t('theme.lightDescription') },
+                { label: t('theme.dark'), value: 'dark' as ThemeMode, description: t('theme.darkDescription') },
+                { label: t('theme.auto'), value: 'auto' as ThemeMode, description: t('theme.autoDescription') },
+              ].map((theme) => {
+                const isSelected = localPreferences.theme === theme.value;
+                return (
+                  <TouchableOpacity
+                    key={theme.value}
+                    style={[
+                      styles.modalOption,
+                      dynamicStyles.modalOption,
+                      isSelected && styles.modalOptionSelected,
+                      pressedButton === `theme-${theme.value}` && styles.modalOptionPressed
+                    ]}
+                    onPressIn={() => {
+                      console.log('🎨 [account-preferences] Theme button pressed IN:', theme.value);
+                      setPressedButton(`theme-${theme.value}`);
+                    }}
+                    onPressOut={() => {
+                      console.log('🎨 [account-preferences] Theme button pressed OUT:', theme.value);
+                      // Retrasar el reset para que el onPress se ejecute primero
+                      setTimeout(() => setPressedButton(null), 200);
+                    }}
+                    onPress={async (e) => {
+                      if (e && e.stopPropagation) {
+                        e.stopPropagation();
+                      }
+                      console.log('🎨 [account-preferences] Theme selected in modal - onPress triggered:', theme.value);
+                      console.log('🎨 [account-preferences] Is currently selected?', isSelected);
+                      
+                      // Cerrar el modal primero para evitar conflictos
+                      setShowThemeModal(false);
+                      
+                      if (!isSelected) {
+                        console.log('🎨 [account-preferences] Calling handleThemeChange...');
+                        try {
+                          await handleThemeChange(theme.value);
+                          console.log('🎨 [account-preferences] handleThemeChange completed');
+                        } catch (error) {
+                          console.error('🎨 [account-preferences] Error in handleThemeChange:', error);
+                        }
+                      } else {
+                        console.log('⏭️ [account-preferences] Theme already selected');
+                      }
+                    }}
+                    activeOpacity={0.7}
+                    delayPressIn={0}
+                    delayPressOut={100}
+                    activeOpacity={0.7}
+                  >
+                    <ThemedText style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {isSelected ? '✓ ' : ''}{theme.label} - {theme.description}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.modalCancelButton,
+                dynamicStyles.modalCancelButton,
+                pressedButton === 'cancel-theme' && styles.modalCancelButtonPressed
+              ]}
+              onPressIn={() => setPressedButton('cancel-theme')}
+              onPressOut={() => setPressedButton(null)}
+              onPress={() => setShowThemeModal(false)}
+            >
+              <ThemedText style={styles.modalCancelText}>{t('common.cancel')}</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
+        </View>
+      )}
     </ThemedView>
   );
 }
@@ -518,7 +927,7 @@ export default function AccountPreferencesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#FFFFFF', // Fondo blanco
   },
   header: {
     flexDirection: 'row',
@@ -526,7 +935,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#282828',
+    borderBottomColor: '#CC7AF240', // Borde púrpura claro sutil
   },
   headerMobile: {
     paddingHorizontal: 12,
@@ -551,7 +960,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    // color se aplica dinámicamente usando ThemedText
   },
   headerTitleMobile: {
     fontSize: 20,
@@ -561,11 +970,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: 200, // Espacio para MiniPlayer (65px) + barra de tabs (65px) + margen extra
   },
   scrollContentMobile: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 200, // Espacio para MiniPlayer (65px) + barra de tabs (65px) + margen extra
   },
   mainContent: {
     width: '100%',
@@ -581,13 +990,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: '#666666', // Gris oscuro para descripciones
     marginBottom: 20,
     lineHeight: 20,
     letterSpacing: 0.2,
@@ -598,17 +1007,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFFFFF', // Fondo blanco
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#282828',
+    borderColor: '#CC7AF280', // Borde púrpura claro
     marginBottom: 12,
     minHeight: 56,
-    shadowColor: '#000',
+    shadowColor: '#7129F2',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 2,
+  },
+  optionButtonPressed: {
+    backgroundColor: '#CC7AF220', // Púrpura claro con 20% opacidad
+    borderColor: '#7129F2',
+    borderWidth: 2,
+    shadowColor: '#7129F2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+    transform: [{ scale: 0.98 }], // Efecto de "hundimiento"
   },
   optionLeft: {
     flexDirection: 'row',
@@ -624,14 +1044,22 @@ const styles = StyleSheet.create({
   optionLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     letterSpacing: 0.2,
+  },
+  optionValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   optionValue: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: '#666666', // Gris oscuro
     fontWeight: '500',
     letterSpacing: 0.1,
+  },
+  optionValueSelected: {
+    color: '#F22976', // Rosa para valores seleccionados
+    fontWeight: '600',
   },
   switchOption: {
     flexDirection: 'row',
@@ -639,16 +1067,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#1A1A1A',
+    // backgroundColor se aplica dinámicamente
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#282828',
+    // borderColor se aplica dinámicamente
     marginBottom: 12,
     minHeight: 72,
-    shadowColor: '#000',
+    shadowColor: '#7129F2',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 2,
   },
   switchLeft: {
@@ -663,13 +1091,13 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000', // Texto negro
     marginBottom: 6,
     letterSpacing: 0.2,
   },
   switchDescription: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: '#666666', // Gris oscuro
     lineHeight: 18,
     letterSpacing: 0.1,
   },
@@ -700,6 +1128,99 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#000000',
+  },
+  // Estilos para modales personalizados en web
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    // En web, asegurar que los eventos de toque funcionen
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer',
+    }),
+  },
+  modalContent: {
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  modalOptions: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  modalOption: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    minHeight: 56,
+    justifyContent: 'center',
+    // En web, asegurar que los eventos de toque funcionen
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer',
+      userSelect: 'none',
+    }),
+  },
+  modalOptionSelected: {
+    backgroundColor: '#CC7AF220', // Púrpura claro con 20% opacidad
+    borderColor: '#7129F2',
+    borderWidth: 2,
+    shadowColor: '#7129F2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modalOptionPressed: {
+    backgroundColor: '#CC7AF230', // Púrpura claro con 30% opacidad cuando se presiona
+    borderColor: '#F229EE',
+    borderWidth: 2,
+    shadowColor: '#F229EE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
+    transform: [{ scale: 0.97 }], // Efecto de "hundimiento"
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#000000', // Texto negro
+    fontWeight: '500',
+    letterSpacing: 0.2,
+  },
+  modalOptionTextSelected: {
+    color: '#F22976', // Rosa para texto seleccionado
+    fontWeight: '700',
+  },
+  modalCancelButton: {
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalCancelButtonPressed: {
+    backgroundColor: '#CC7AF220', // Púrpura claro con 20% opacidad
+    transform: [{ scale: 0.95 }], // Efecto de "hundimiento"
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000', // Texto negro
   },
 });
 
