@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity, ActivityIndicator, Dimensions, View } from 'react-native';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Input } from '@/components/ui/input';
@@ -87,6 +87,9 @@ export default function AuthScreen() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotError, setForgotError] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState(false);
+
+  // Estado para mensaje de éxito del registro
+  const [registerSuccess, setRegisterSuccess] = useState(false);
 
   // Validaciones
   const validateEmail = (email: string): boolean => {
@@ -336,21 +339,85 @@ export default function AuthScreen() {
 
       const response = await AuthService.register(userData);
       
-      Alert.alert('Éxito', 'Usuario registrado correctamente', [
-        {
-          text: 'OK',
-          onPress: () => {
-            console.log('🔘 Registration successful, redirecting to login');
-            setRegisterName('');
-            setRegisterEmail('');
-            setRegisterPassword('');
-            setRegisterConfirmPassword('');
-            router.push('/auth?screen=login');
-          },
-        },
-      ]);
+      // Mostrar mensaje de éxito
+      setRegisterSuccess(true);
+      
+      // Limpiar el formulario
+      setRegisterName('');
+      setRegisterEmail('');
+      setRegisterPassword('');
+      setRegisterConfirmPassword('');
+      setRegisterErrors({});
+      
+      // Redirigir al login después de 2.5 segundos
+      setTimeout(() => {
+        setRegisterSuccess(false);
+        router.push('/auth?screen=login');
+      }, 2500);
     } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Error al registrar usuario');
+      console.error('Registration error:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        data: (error as any)?.data,
+        field: (error as any)?.field,
+        fullError: error
+      });
+      
+      let errorMessage = 'Error al registrar usuario';
+      let shouldShowUsernameError = false;
+      
+      if (error instanceof Error) {
+        const errorMsg = error.message.toLowerCase();
+        const errorData = (error as any)?.data;
+        const errorField = (error as any)?.field;
+        
+        // Revisar también error.data.error y error.data.message
+        const errorDataError = errorData?.error?.toLowerCase() || '';
+        const errorDataMessage = errorData?.message?.toLowerCase() || '';
+        
+        // Detectar si el error es por nombre de usuario ocupado
+        // Verificar múltiples variantes del mensaje
+        if (
+          // Verificar en el mensaje principal
+          (errorMsg.includes('username') || errorMsg.includes('nombre') || errorMsg.includes('usuario')) &&
+          (errorMsg.includes('ocupado') || errorMsg.includes('usado') || errorMsg.includes('taken') || 
+           errorMsg.includes('exists') || errorMsg.includes('en uso') || errorMsg.includes('already') ||
+           errorMsg.includes('duplicate') || errorMsg.includes('duplicado')) ||
+          // Verificar en error.data.error
+          ((errorDataError.includes('username') || errorDataError.includes('nombre') || errorDataError.includes('usuario')) &&
+           (errorDataError.includes('ocupado') || errorDataError.includes('usado') || errorDataError.includes('taken') || 
+            errorDataError.includes('exists') || errorDataError.includes('en uso') || errorDataError.includes('already') ||
+            errorDataError.includes('duplicate') || errorDataError.includes('duplicado'))) ||
+          // Verificar en error.data.message
+          ((errorDataMessage.includes('username') || errorDataMessage.includes('nombre') || errorDataMessage.includes('usuario')) &&
+           (errorDataMessage.includes('ocupado') || errorDataMessage.includes('usado') || errorDataMessage.includes('taken') || 
+            errorDataMessage.includes('exists') || errorDataMessage.includes('en uso') || errorDataMessage.includes('already') ||
+            errorDataMessage.includes('duplicate') || errorDataMessage.includes('duplicado'))) ||
+          // Verificar el campo del error
+          errorField === 'username' || errorField === 'name' || errorField === 'usuario'
+        ) {
+          errorMessage = 'Nombre de usuario está en uso';
+          shouldShowUsernameError = true;
+          // Establecer el error en el campo para que se muestre debajo del input
+          const errorText = 'Nombre de usuario está en uso';
+          setRegisterErrors({ name: errorText });
+          console.log('Username error set:', errorText);
+          console.log('Register errors state:', { name: errorText });
+          // No mostrar Alert, solo el error en el campo
+          // El finally se ejecutará para setLoading(false)
+        } else {
+          // Usar el mensaje del error o del backend
+          errorMessage = errorData?.error || errorData?.message || error.message || 'Error al registrar usuario';
+        }
+      }
+      
+      console.log('Final error message:', errorMessage);
+      console.log('Should show username error:', shouldShowUsernameError);
+      
+      // Solo mostrar Alert si no es un error de nombre de usuario (ese ya se muestra en el campo)
+      if (!shouldShowUsernameError) {
+        Alert.alert('Error', errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -492,6 +559,16 @@ export default function AuthScreen() {
       <ThemedText style={styles.subtitle}>
         Completa el formulario para registrarte
       </ThemedText>
+
+      {/* Mensaje de éxito del registro */}
+      {registerSuccess && (
+        <View style={styles.successContainer}>
+          <Ionicons name="checkmark-circle" size={24} color="#34c759" />
+          <ThemedText style={styles.successText} lightColor="#34c759" darkColor="#34c759">
+            Cuenta creada correctamente
+          </ThemedText>
+        </View>
+      )}
 
       <Input
         label="Nombre"
@@ -725,14 +802,20 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   successContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     padding: isSmallScreen ? 12 : 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(52, 199, 89, 0.1)',
-    marginBottom: 16,
+    backgroundColor: 'rgba(52, 199, 89, 0.15)',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 199, 89, 0.3)',
   },
   successText: {
-    textAlign: 'center',
-    fontSize: isSmallScreen ? 14 : 16,
+    fontSize: isSmallScreen ? 15 : 16,
+    fontWeight: '600',
   },
   loginButton: {
     backgroundColor: '#F22976',

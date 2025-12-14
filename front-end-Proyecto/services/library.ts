@@ -260,18 +260,47 @@ export class LibraryService {
   static async getLikedSongs(): Promise<Song[]> {
     try {
       const token = await getAuthToken();
+      if (!token) {
+        console.warn('LibraryService.getLikedSongs - No token available');
+        return [];
+      }
       const headers = getAuthHeaders(token);
       
-      const response = await ApiClient.get<SongsResponse>(
-        ENDPOINTS.LIBRARY.LIKED_SONGS,
-        { headers }
-      );
-      
-      return (response.data?.songs || []).map(song => ({
-        ...song,
-        coverUrl: fixLocalhost(song.coverUrl),
-        audioUrl: fixLocalhost(song.audioUrl),
-      }));
+      // Intentar primero con /api/library/liked-songs
+      try {
+        const response = await ApiClient.get<SongsResponse>(
+          ENDPOINTS.LIBRARY.LIKED_SONGS,
+          { headers }
+        );
+        
+        return (response.data?.songs || []).map(song => ({
+          ...song,
+          coverUrl: fixLocalhost(song.coverUrl),
+          audioUrl: fixLocalhost(song.audioUrl),
+        }));
+      } catch (error) {
+        // Si falla con 404, intentar alternativa bajo /api/users
+        if (error instanceof ApiError && error.status === 404) {
+          console.warn('LibraryService.getLikedSongs - Primary endpoint failed (404), trying /api/users/liked-songs...');
+          try {
+            const altResponse = await ApiClient.get<SongsResponse>(
+              '/api/users/liked-songs',
+              { headers }
+            );
+            
+            return (altResponse.data?.songs || []).map(song => ({
+              ...song,
+              coverUrl: fixLocalhost(song.coverUrl),
+              audioUrl: fixLocalhost(song.audioUrl),
+            }));
+          } catch (altError) {
+            console.error('LibraryService.getLikedSongs - Alternative endpoint also failed:', altError);
+            // Si ambas fallan, devolver array vacío (mejor UX que error)
+            return [];
+          }
+        }
+        throw error;
+      }
     } catch (error) {
       console.error('LibraryService.getLikedSongs error:', error);
       if (error instanceof ApiError && error.status === 404) {
@@ -287,44 +316,161 @@ export class LibraryService {
   /**
    * Dar like a una canción
    */
-  static async likeSong(songId: number): Promise<boolean> {
+  static async likeSong(songId: number): Promise<any> {
     try {
       const token = await getAuthToken();
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
       const headers = getAuthHeaders(token);
       
-      const response = await ApiClient.post(
-        ENDPOINTS.LIBRARY.LIKE_SONG(songId),
-        {},
-        { headers }
-      );
+      // Intentar primero con POST /api/library/liked-songs/:songId (ruta principal)
+      const primaryEndpoint = ENDPOINTS.LIBRARY.LIKE_SONG(songId);
+      console.log(`LibraryService.likeSong - Attempting POST to: ${primaryEndpoint}`);
       
-      return response.data?.ok || false;
+      try {
+        const response = await ApiClient.post(
+          primaryEndpoint,
+          {},
+          { headers }
+        );
+        
+        console.log(`LibraryService.likeSong - Success:`, response.data);
+        // Devolver la respuesta completa para incluir mensajes
+        return response.data || { ok: true, success: true };
+      } catch (error) {
+        // Si falla con 404, intentar con songId en el body
+        if (error instanceof ApiError && error.status === 404) {
+          console.warn(`LibraryService.likeSong - Primary endpoint failed (404), trying with songId in body...`);
+          
+          try {
+            const altResponse = await ApiClient.post(
+              ENDPOINTS.LIBRARY.LIKED_SONGS,
+              { songId },
+              { headers }
+            );
+            
+            console.log(`LibraryService.likeSong - Success with body:`, altResponse.data);
+            // Devolver la respuesta completa para incluir mensajes
+            return altResponse.data || { ok: true, success: true };
+          } catch (altError) {
+            console.error(`LibraryService.likeSong - Both endpoints failed`);
+            throw error; // Lanzar el error original
+          }
+        }
+        throw error;
+      }
     } catch (error) {
-      console.error(`LibraryService.likeSong(${songId}) error:`, error);
+      console.error(`LibraryService.likeSong(${songId}) - Error:`, error);
       if (error instanceof ApiError) {
         throw error;
       }
-      return false;
+      throw new ApiError(
+        `Error al dar like a la canción: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        500
+      );
     }
   }
 
   /**
    * Quitar like de una canción
    */
-  static async unlikeSong(songId: number): Promise<boolean> {
+  static async unlikeSong(songId: number): Promise<any> {
     try {
       const token = await getAuthToken();
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
       const headers = getAuthHeaders(token);
       
-      const response = await ApiClient.delete(
-        ENDPOINTS.LIBRARY.UNLIKE_SONG(songId),
-        { headers }
-      );
+      const primaryEndpoint = ENDPOINTS.LIBRARY.UNLIKE_SONG(songId);
+      console.log(`LibraryService.unlikeSong - Attempting DELETE to: ${primaryEndpoint}`);
       
-      return response.data?.ok || false;
+      // Intentar primero con DELETE a la ruta que incluye el ID
+      try {
+        const response = await ApiClient.delete(
+          primaryEndpoint,
+          { headers }
+        );
+        
+        console.log(`LibraryService.unlikeSong - Success with primary endpoint:`, response.data);
+        // Devolver la respuesta completa para incluir mensajes
+        return response.data || { ok: true, success: true };
+      } catch (error) {
+        // Si falla con 404, intentar alternativas
+        if (error instanceof ApiError && error.status === 404) {
+          console.warn(`LibraryService.unlikeSong - Primary endpoint failed (404), trying alternatives...`);
+          
+          // Opción 1: Intentar con query param en la URL
+          try {
+            const altEndpoint = `${ENDPOINTS.LIBRARY.LIKED_SONGS}?songId=${songId}`;
+            console.log(`LibraryService.unlikeSong - Trying with query param: ${altEndpoint}`);
+            const altResponse = await ApiClient.delete(
+              altEndpoint,
+              { headers }
+            );
+            
+            console.log(`LibraryService.unlikeSong - Success with query param endpoint:`, altResponse.data);
+            // Devolver la respuesta completa para incluir mensajes
+            return altResponse.data || { ok: true, success: true };
+          } catch (altError1) {
+            console.warn(`LibraryService.unlikeSong - Query param endpoint failed, trying with body...`);
+            // Opción 2: Intentar con body
+            try {
+              const altResponse2 = await ApiClient.delete(
+                ENDPOINTS.LIBRARY.LIKED_SONGS,
+                { 
+                  headers,
+                  body: { songId }
+                }
+              );
+              
+              console.log(`LibraryService.unlikeSong - Success with body endpoint:`, altResponse2.data);
+              // Devolver la respuesta completa para incluir mensajes
+              return altResponse2.data || { ok: true, success: true };
+            } catch (altError2) {
+              console.warn(`LibraryService.unlikeSong - Body endpoint failed, trying under /api/users...`);
+              // Opción 3: Intentar bajo /api/users/liked-songs
+              try {
+                const userLikedEndpoint = `/api/users/liked-songs/${songId}`;
+                console.log(`LibraryService.unlikeSong - Trying: DELETE to ${userLikedEndpoint}`);
+                const altResponse3 = await ApiClient.delete(
+                  userLikedEndpoint,
+                  { headers }
+                );
+                
+                console.log(`LibraryService.unlikeSong - Success with /api/users endpoint:`, altResponse3.data);
+                // Devolver la respuesta completa para incluir mensajes
+                return altResponse3.data || { ok: true, success: true };
+              } catch (altError3) {
+                // Opción 4: Intentar DELETE a /api/users/liked-songs con songId en body o query
+                try {
+                  const userLikedEndpoint2 = `/api/users/liked-songs?songId=${songId}`;
+                  console.log(`LibraryService.unlikeSong - Trying: DELETE to ${userLikedEndpoint2}`);
+                  const altResponse4 = await ApiClient.delete(
+                    userLikedEndpoint2,
+                    { headers }
+                  );
+                  
+                  console.log(`LibraryService.unlikeSong - Success with /api/users query endpoint:`, altResponse4.data);
+                  // Devolver la respuesta completa para incluir mensajes
+                  return altResponse4.data || { ok: true, success: true };
+                } catch (altError4) {
+                  console.error(`LibraryService.unlikeSong - All alternative endpoints failed`);
+                  // Si todas fallan, lanzar el error original
+                  throw error;
+                }
+              }
+            }
+          }
+        }
+        throw error;
+      }
     } catch (error) {
-      console.error(`LibraryService.unlikeSong(${songId}) error:`, error);
+      console.error(`LibraryService.unlikeSong(${songId}) - Final error:`, error);
       if (error instanceof ApiError) {
+        console.error(`LibraryService.unlikeSong - Error status: ${error.status}, message: ${error.message}`);
+        console.error(`LibraryService.unlikeSong - Error data:`, error.data);
         throw error;
       }
       return false;
@@ -346,5 +492,6 @@ export class LibraryService {
 }
 
 export default LibraryService;
+
 
 

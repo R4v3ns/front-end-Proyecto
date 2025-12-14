@@ -130,6 +130,7 @@ export const ENDPOINTS = {
     FEATURED: '/songs/featured',
     POPULAR_SONGS: '/songs/popular',
     RECENT_SONGS: '/songs/recent',
+    PODCASTS: '/songs/podcasts', // Podcasts (canciones con isExample: true)
     POPULAR_ARTISTS: '/songs/artists/popular',
     POPULAR_ALBUMS: '/songs/albums/popular',
     ARTIST_DETAILS: (artistName: string) => `/songs/artist/${encodeURIComponent(artistName)}`,

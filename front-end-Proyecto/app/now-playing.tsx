@@ -2,15 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SafeAreaView, Text, StyleSheet, View, Modal, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSongs } from "@/hooks/useSongs";
-import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { usePlayer } from "@/contexts/PlayerContext";
 import { Song } from "@/models/song";
 import { Ionicons } from "@expo/vector-icons";
 import ProgressBar from "@/components/music/ProgressBar";
 import PlayerControls from "@/components/music/PlayerControls";
 import SongCard from "@/components/music/SongCard";
 import ScreenHeader from "@/components/music/ScreenHeader";
-import { usePlaylists, useAddSongToPlaylist } from "@/hooks/useLibrary";
+import { usePlaylists, useAddSongToPlaylist, useLikeSong, useUnlikeSong, useLikedSongs } from "@/hooks/useLibrary";
 import { exampleSongs } from "@/data/exampleSongs";
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function NowPlayingScreen() {
   const router = useRouter();
@@ -19,25 +20,10 @@ export default function NowPlayingScreen() {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const { playlists, isLoading: playlistsLoading } = usePlaylists();
   const addSongToPlaylist = useAddSongToPlaylist();
-  
-  // Combinar canciones del API con canciones de ejemplo
-  // PRIORIDAD: Las canciones de ejemplo tienen prioridad sobre las del API (para evitar conflictos)
-  const songs = useMemo(() => {
-    // Empezar con las canciones de ejemplo (tienen prioridad)
-    const combined = [...exampleSongs];
-    
-    // Agregar canciones del API solo si no tienen un ID que ya existe en exampleSongs
-    if (apiSongs && apiSongs.length > 0) {
-      apiSongs.forEach(apiSong => {
-        // Solo agregar si no existe una canción de ejemplo con el mismo ID
-        if (!combined.find(s => s.id === apiSong.id)) {
-          combined.push(apiSong);
-        }
-      });
-    }
-    
-    return combined;
-  }, [apiSongs]);
+  const likeSong = useLikeSong();
+  const unlikeSong = useUnlikeSong();
+  const { songs: likedSongs } = useLikedSongs();
+  const { isAuthenticated } = useAuth();
   
   const {
     playerState,
@@ -48,42 +34,102 @@ export default function NowPlayingScreen() {
     handlePrevious,
     toggleShuffle,
     toggleRepeat,
-  } = useAudioPlayer(songs);
-
+  } = usePlayer();
+  
+  // Obtener la playlist del estado del reproductor
+  const songs = playerState.playlist || [];
+  
+  // Flag para evitar reproducción automática después de la primera vez
+  const hasInitializedRef = useRef(false);
+  // Flag para rastrear si el usuario está cambiando de canción manualmente
+  const isManualChangeRef = useRef(false);
+  
+  // Wrapper para handleNext que marca el cambio como manual
+  const handleNextWithFlag = async () => {
+    isManualChangeRef.current = true;
+    await handleNext();
+    // Resetear el flag después de un tiempo
+    setTimeout(() => {
+      isManualChangeRef.current = false;
+    }, 2000);
+  };
+  
+  // Wrapper para handlePrevious que marca el cambio como manual
+  const handlePreviousWithFlag = async () => {
+    isManualChangeRef.current = true;
+    await handlePrevious();
+    // Resetear el flag después de un tiempo
+    setTimeout(() => {
+      isManualChangeRef.current = false;
+    }, 2000);
+  };
+  
+  // Ref para rastrear el último songId procesado
+  const lastProcessedSongIdRef = useRef<string | null>(null);
+  
   // Reproducir canción específica si se pasa songId como parámetro
   useEffect(() => {
-    if (params.songId && songs.length > 0) {
-      const songId = parseInt(params.songId, 10);
+    // Si hay un cambio manual en progreso, no hacer nada automáticamente
+    if (isManualChangeRef.current) {
+      console.log('⏸️ useEffect - Cambio manual en progreso, ignorando reproducción automática...');
+      return;
+    }
+    
+    // Solo procesar si params.songId cambió (no cuando playerState.currentSong cambia)
+    const currentSongId = params.songId;
+    if (currentSongId === lastProcessedSongIdRef.current) {
+      // Ya procesamos este songId, no hacer nada
+      return;
+    }
+    
+    if (currentSongId && songs.length > 0) {
+      const songId = parseInt(currentSongId, 10);
       
-      // PRIORIDAD: Buscar primero en exampleSongs (las canciones de ejemplo tienen prioridad)
-      // Esto asegura que cuando se presiona una canción de ejemplo, se use esa específicamente
-      let song = exampleSongs.find(s => s.id === songId);
+      // PRIORIDAD: Buscar primero en las canciones del API (datos reales)
+      // Si no se encuentra, usar exampleSongs como fallback
+      let song = songs.find(s => s.id === songId);
       if (!song) {
-        // Si no está en exampleSongs, buscar en el resto de canciones
-        song = songs.find(s => s.id === songId);
+        // Si no está en las canciones del API, buscar en exampleSongs como fallback
+        song = exampleSongs.find(s => s.id === songId);
       }
       
       if (song) {
-        // Solo reproducir si no es la canción actual o si es diferente
-        if (!playerState.currentSong || playerState.currentSong.id !== song.id) {
-          // Llamar inmediatamente - playSong actualiza el estado al instante
-          playSong(song);
-        }
+        // Reproducir la canción (los podcasts también se pueden reproducir)
+        console.log(`🎵 useEffect - Reproduciendo canción desde params.songId: ${song.title}`);
+        playSong(song);
+        lastProcessedSongIdRef.current = currentSongId; // Marcar como procesado
+        hasInitializedRef.current = true; // Marcar como inicializado
       }
-    } else if (songs.length > 0 && !playerState.currentSong && !isLoading && !params.songId) {
-      // Solo reproducir automáticamente si no hay songId en los parámetros
-      // Si no hay canción seleccionada y hay canciones disponibles, reproducir la primera de ejemplo
-      const firstExampleSong = exampleSongs[0];
-      if (firstExampleSong) {
-        console.log('🎵 Reproduciendo primera canción de ejemplo:', firstExampleSong.title);
-        playSong(firstExampleSong);
-      } else {
-        playSong(songs[0]);
+    } else if (
+      songs.length > 0 && 
+      !hasInitializedRef.current && 
+      !playerState.currentSong && 
+      !playerState.isLoading &&
+      !currentSongId &&
+      !isManualChangeRef.current
+    ) {
+      // Solo reproducir automáticamente la primera vez que se carga la pantalla
+      // y si no hay songId en los parámetros y no hay canción actual
+      // Buscar la primera canción que NO sea ejemplo
+      const firstPlayableSong = songs.find(s => !s.isExample) || songs[0];
+      if (firstPlayableSong && !firstPlayableSong.isExample) {
+        console.log('🎵 Reproduciendo primera canción (inicialización):', firstPlayableSong.title);
+        playSong(firstPlayableSong);
+        hasInitializedRef.current = true; // Marcar como inicializado para evitar reproducciones automáticas futuras
+      } else if (firstPlayableSong && firstPlayableSong.isExample) {
+        console.log('⚠️ Solo hay canciones de ejemplo disponibles, no se reproducirá automáticamente');
+        hasInitializedRef.current = true;
       }
     }
-  }, [params.songId, songs, playSong, playerState.currentSong, isLoading]);
+  }, [params.songId, songs, playSong]); // Removido playerState.currentSong y playerState.isLoading de las dependencias
 
   const currentSong: Song | null = playerState.currentSong ?? (songs?.[0] ?? null);
+  
+  // Verificar si la canción actual está en los likes
+  const isCurrentSongLiked = useMemo(() => {
+    if (!currentSong) return false;
+    return likedSongs.some(song => song.id === currentSong.id);
+  }, [currentSong, likedSongs]);
 
   const handleAddToPlaylist = async (playlistId: number) => {
     if (!currentSong) return;
@@ -180,9 +226,121 @@ export default function NowPlayingScreen() {
             coverUrl={currentSong?.coverUrl}
             title={currentSong?.title || 'Sin título'}
             artist={currentSong?.artist || 'Artista desconocido'}
-            onLikePress={() => {
-              // Aquí puedes agregar la lógica para guardar en favoritos
-              console.log('Me gusta presionado para:', currentSong?.title);
+            isLiked={isCurrentSongLiked}
+            onLikePress={async () => {
+              if (!currentSong) return;
+              
+              // Verificar autenticación antes de intentar dar like
+              if (!isAuthenticated) {
+                Alert.alert(
+                  'Inicia sesión',
+                  'Debes iniciar sesión para agregar canciones a favoritos.',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { 
+                      text: 'Iniciar sesión', 
+                      onPress: () => router.push('/auth')
+                    }
+                  ]
+                );
+                return;
+              }
+              
+              try {
+                if (isCurrentSongLiked) {
+                  // Si ya está en likes, quitarlo
+                  const result = await unlikeSong.mutateAsync(currentSong.id);
+                  
+                  // Mostrar mensaje de confirmación en la UI
+                  const message = result?.message || `"${currentSong.title}" eliminada de favoritos exitosamente`;
+                  Alert.alert('✅ Éxito', message);
+                } else {
+                  // Si no está en likes, agregarlo
+                  const result = await likeSong.mutateAsync(currentSong.id);
+                  
+                  // Mostrar mensaje de confirmación en la UI
+                  const message = result?.message || `"${currentSong.title}" agregada a favoritos exitosamente`;
+                  Alert.alert('✅ Éxito', message);
+                }
+              } catch (error: any) {
+                // Extraer mensaje del error del backend
+                const errorMessage = error?.message || error?.data?.error || 'Error desconocido';
+                const errorStatus = error?.status;
+                
+                // Verificar si es un error de validación del backend (409 = conflicto, como "Ya has dado like")
+                if (errorStatus === 409) {
+                  Alert.alert(
+                    '⚠️ Ya existe',
+                    errorMessage || 'Esta canción ya está en tus favoritos'
+                  );
+                  return;
+                }
+                
+                // Verificar si es un error 404 (canción no encontrada)
+                if (errorStatus === 404) {
+                  Alert.alert(
+                    '❌ No encontrado',
+                    errorMessage || 'La canción no fue encontrada en la base de datos'
+                  );
+                  return;
+                }
+                
+                // Verificar si es un error de validación (400)
+                if (errorStatus === 400) {
+                  Alert.alert(
+                    '⚠️ Error de validación',
+                    errorMessage || 'Los datos enviados no son válidos'
+                  );
+                  return;
+                }
+                
+                // Verificar si es un error de autenticación (401 o sin token)
+                if (errorStatus === 401 || 
+                    errorMessage?.includes('No hay token') || 
+                    errorMessage?.includes('Token no proporcionado') ||
+                    errorMessage?.includes('autenticación') ||
+                    errorMessage?.includes('Token expirado')) {
+                  Alert.alert(
+                    '🔐 Sesión expirada',
+                    'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      { 
+                        text: 'Iniciar sesión', 
+                        onPress: () => router.push('/auth')
+                      }
+                    ]
+                  );
+                  return;
+                }
+                
+                // Verificar si es un error de conexión (túnel offline, red, etc.)
+                if (errorStatus === 0 || 
+                    errorMessage?.includes('fetch') || 
+                    errorMessage?.includes('Network request failed') ||
+                    errorMessage?.includes('Error de conexión') ||
+                    errorMessage?.includes('Failed to fetch')) {
+                  Alert.alert(
+                    '🌐 Error de conexión',
+                    `No se pudo conectar al servidor backend.\n\n` +
+                    `Posibles causas:\n` +
+                    `• El túnel de Expo está offline\n` +
+                    `• El servidor backend no está corriendo\n` +
+                    `• Problemas de red\n\n` +
+                    `Soluciones:\n` +
+                    `1. Reinicia Expo: npx expo start --tunnel\n` +
+                    `2. O usa LAN: npx expo start --lan\n` +
+                    `3. Verifica que el backend esté corriendo en localhost:8080`
+                  );
+                  return;
+                }
+                
+                // Otros errores - mostrar mensaje del backend
+                Alert.alert(
+                  '❌ Error',
+                  errorMessage || 'No se pudo actualizar el estado de me gusta. Por favor, intenta nuevamente.'
+                );
+              }
             }}
             onMenuPress={() => setShowPlaylistModal(true)}
           />
@@ -204,12 +362,12 @@ export default function NowPlayingScreen() {
             isPlaying={playerState.isPlaying}
             onPrev={() => {
               if (songs.length) {
-                handlePrevious();
+                handlePreviousWithFlag();
               }
             }}
             onNext={() => {
               if (songs.length) {
-                handleNext();
+                handleNextWithFlag();
               }
             }}
             onTogglePlayPause={() => {
@@ -217,6 +375,8 @@ export default function NowPlayingScreen() {
             }}
             onShufflePress={toggleShuffle}
             onRepeatPress={toggleRepeat}
+            isShuffle={playerState.isShuffle}
+            repeatMode={playerState.repeatMode}
           />
         </View>
       </View>

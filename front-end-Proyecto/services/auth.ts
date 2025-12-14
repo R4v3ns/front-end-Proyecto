@@ -159,14 +159,27 @@ export class AuthService {
       );
       return response.data || {};
     } catch (error) {
+      console.error('AuthService.register - Error caught:', error);
+      
       if (error instanceof ApiError) {
         // El backend retorna errores con estructura { error: "...", field: "..." }
-        const errorMessage = error.data?.error || error.message || 'Error al registrar usuario';
+        const errorMessage = error.data?.error || error.data?.message || error.message || 'Error al registrar usuario';
         const errorField = error.data?.field;
-        const errorWithField = new Error(errorMessage) as Error & { field?: string };
+        
+        console.log('AuthService.register - Error details:', {
+          message: errorMessage,
+          field: errorField,
+          data: error.data,
+          status: error.status
+        });
+        
+        const errorWithField = new Error(errorMessage) as Error & { field?: string; data?: any };
         if (errorField) {
           errorWithField.field = errorField;
         }
+        // Pasar también los datos completos para mejor detección
+        errorWithField.data = error.data;
+        
         throw errorWithField;
       }
       throw new Error('Error de conexión. Verifica tu conexión a internet.');

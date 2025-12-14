@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
@@ -13,7 +14,9 @@ import { ThemedView } from '@/components/themed-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { router, useLocalSearchParams } from 'expo-router';
+import { usePodcasts } from '@/hooks/usePodcasts';
 import { examplePodcasts } from '@/data/podcasts';
+import { useSongs } from '@/hooks/useSongs';
 
 const { width } = Dimensions.get('window');
 
@@ -21,9 +24,61 @@ export default function PodcastDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const podcastId = params.id;
   const textColor = useThemeColor({}, 'text');
+  const { podcasts, isLoading: podcastsLoading } = usePodcasts();
+  const { songs, isLoading: songsLoading } = useSongs();
 
   // Buscar el podcast por ID
-  const podcast = examplePodcasts.find(p => p.id === podcastId);
+  // Primero en los podcasts del API, luego en las canciones (podcasts tienen isExample: true)
+  // Finalmente en examplePodcasts como fallback
+  const podcastIdNum = podcastId ? parseInt(podcastId, 10) : null;
+  
+  let podcast = null;
+  if (podcastIdNum) {
+    // Buscar en podcasts del API
+    podcast = podcasts.find(p => p.id === podcastIdNum);
+    
+    // Si no se encuentra, buscar en las canciones (podcasts tienen isExample: true)
+    if (!podcast) {
+      const podcastSong = songs.find(s => s.id === podcastIdNum && s.isExample);
+      if (podcastSong) {
+        podcast = {
+          id: podcastSong.id,
+          title: podcastSong.title,
+          description: podcastSong.artist || '',
+          coverUrl: podcastSong.coverUrl,
+          publisher: podcastSong.artist || '',
+          totalEpisodes: 0,
+          category: '',
+        };
+      }
+    }
+  }
+  
+  // Fallback a examplePodcasts
+  if (!podcast) {
+    podcast = examplePodcasts.find(p => p.id === podcastId);
+  }
+  
+  const isLoading = podcastsLoading || songsLoading;
+
+  // Mostrar loading mientras se cargan los podcasts
+  if (isLoading) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </TouchableOpacity>
+          <ThemedText style={styles.headerTitle}>Podcast</ThemedText>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color="#F22976" />
+          <ThemedText style={[styles.emptyText, { marginTop: 16 }]}>Cargando podcast...</ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
 
   if (!podcast) {
     return (
@@ -42,11 +97,9 @@ export default function PodcastDetailScreen() {
   }
 
   const handlePlay = () => {
-    // TODO: Implementar reproducción de podcast
-    // Por ahora, navegar al reproductor
-    console.log('Reproducir podcast:', podcast.title);
-    // router.push('/now-playing?podcastId=' + podcast.id);
-    alert('Funcionalidad de podcasts próximamente');
+    // Reproducir el podcast navegando al reproductor
+    console.log('🎵 Reproduciendo podcast:', podcast.title);
+    router.push(`/now-playing?songId=${podcast.id}`);
   };
 
   return (
@@ -74,9 +127,9 @@ export default function PodcastDetailScreen() {
             transition={200}
           />
           <ThemedText style={styles.podcastTitle}>{podcast.title}</ThemedText>
-          {podcast.description && (
+          {(podcast.description || podcast.publisher) && (
             <ThemedText style={styles.podcastDescription}>
-              {podcast.description}
+              {podcast.description || podcast.publisher}
             </ThemedText>
           )}
           
@@ -182,4 +235,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
 

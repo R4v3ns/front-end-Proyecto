@@ -8,6 +8,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { QueryProvider } from './providers/QueryProvider';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PreferencesProvider, usePreferences } from '@/contexts/PreferencesContext';
+import { PlayerProvider } from '@/contexts/PlayerContext';
+import { ToastContainer } from '@/components/ui/toast';
+import MiniPlayer from '@/components/music/MiniPlayer';
 
 // Estilos CSS para switches en web
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -54,6 +57,8 @@ function ThemedLayout() {
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style={statusBarStyle} />
+      <ToastContainer />
+      <MiniPlayer />
     </ThemeProvider>
   );
 }
@@ -63,7 +68,9 @@ export default function RootLayout() {
     <AuthProvider>
       <PreferencesProvider>
         <QueryProvider>
-          <ThemedLayout />
+          <PlayerProvider>
+            <ThemedLayout />
+          </PlayerProvider>
         </QueryProvider>
       </PreferencesProvider>
     </AuthProvider>

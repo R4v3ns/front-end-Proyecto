@@ -43,15 +43,33 @@ const fixLocalhost = (url: string): string => {
 export class PodcastsService {
   /**
    * Obtener todos los podcasts
+   * Usa el endpoint /songs/podcasts que devuelve canciones con isExample: true
    */
   static async getAllPodcasts(): Promise<Podcast[]> {
     try {
-      const response = await ApiClient.get<PodcastsResponse>(ENDPOINTS.PODCASTS.PODCASTS);
+      // Intentar primero el endpoint de canciones/podcasts
+      const response = await ApiClient.get<{ ok: boolean; podcasts: any[] }>(
+        ENDPOINTS.CATALOG.PODCASTS
+      );
       const podcasts = (response.data?.podcasts || []).map(podcast => ({
+        id: podcast.id,
+        title: podcast.title,
+        coverUrl: fixLocalhost(podcast.coverUrl),
+        description: podcast.artist, // Usar artist como description
+        audioUrl: fixLocalhost(podcast.audioUrl),
+        publisher: podcast.artist, // Usar artist como publisher
+      }));
+      if (podcasts.length > 0) {
+        return podcasts;
+      }
+      
+      // Fallback al endpoint original de podcasts
+      const fallbackResponse = await ApiClient.get<PodcastsResponse>(ENDPOINTS.PODCASTS.PODCASTS);
+      const fallbackPodcasts = (fallbackResponse.data?.podcasts || []).map(podcast => ({
         ...podcast,
         coverUrl: fixLocalhost(podcast.coverUrl),
       }));
-      return podcasts;
+      return fallbackPodcasts;
     } catch (error) {
       console.error('PodcastsService.getAllPodcasts error:', error);
       if (error instanceof ApiError && error.status === 404) {
@@ -223,5 +241,6 @@ export class PodcastsService {
 }
 
 export default PodcastsService;
+
 
 

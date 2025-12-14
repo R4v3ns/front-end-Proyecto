@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { UserService, UpdateProfileData } from '@/services/user';
 import { formatBirthDateFromISO, formatBirthDateInput, isValidBirthDate } from '@/utils/date';
+import { showToast } from '@/components/ui/toast';
 
 const { width, height } = Dimensions.get('window');
 const isMobile = width < 768;
@@ -340,13 +341,16 @@ export default function ProfileSettingsScreen() {
 
   const handleSave = async () => {
     if (!username.trim()) {
-      Alert.alert('Error', 'El nombre de usuario es requerido');
+      showToast('El nombre de usuario es requerido', 'error', 3000);
+      if (Platform.OS !== 'web') {
+        Alert.alert('⚠️ Error de validación', 'El nombre de usuario es requerido');
+      }
       return;
     }
 
     setSaving(true);
     try {
-      console.log('Saving profile data...');
+      console.log('💾 Iniciando guardado del perfil...');
       
       // Preparar los datos para enviar al backend
       // El backend espera firstName y lastName, así que dividimos el nombre completo
@@ -355,14 +359,22 @@ export default function ProfileSettingsScreen() {
       // Validar teléfono: solo números
       const phoneNumbersOnly = getPhoneNumbersOnly(phone);
       if (phoneNumbersOnly && phoneNumbersOnly.length < 7) {
-        Alert.alert('Error', 'El teléfono debe tener al menos 7 dígitos');
+        setSaving(false);
+        showToast('El teléfono debe tener al menos 7 dígitos', 'error', 3000);
+        if (Platform.OS !== 'web') {
+          Alert.alert('⚠️ Error de validación', 'El teléfono debe tener al menos 7 dígitos');
+        }
         return;
       }
       
       // Validar fecha de nacimiento si está presente
       const trimmedBirthDate = birthDate.trim();
       if (trimmedBirthDate && !isValidBirthDate(trimmedBirthDate)) {
-        Alert.alert('Error', 'La fecha de nacimiento no es válida. Usa el formato DD/MM/AAAA');
+        setSaving(false);
+        showToast('La fecha de nacimiento no es válida. Usa el formato DD/MM/AAAA', 'error', 3000);
+        if (Platform.OS !== 'web') {
+          Alert.alert('⚠️ Error de validación', 'La fecha de nacimiento no es válida. Usa el formato DD/MM/AAAA');
+        }
         return;
       }
       
@@ -392,19 +404,23 @@ export default function ProfileSettingsScreen() {
         name: profileData.name,
       });
 
-      // Remover campos undefined para no enviarlos al backend
+      // Remover campos undefined y vacíos para no enviarlos al backend
+      // Pero mantener los campos que tienen valores válidos
+      const cleanedProfileData: UpdateProfileData = {};
       Object.keys(profileData).forEach(key => {
-        if (profileData[key as keyof UpdateProfileData] === undefined) {
-          delete profileData[key as keyof UpdateProfileData];
+        const value = profileData[key as keyof UpdateProfileData];
+        // Solo incluir si tiene un valor válido (no undefined, no null, y si es string no vacío)
+        if (value !== undefined && value !== null && value !== '') {
+          cleanedProfileData[key as keyof UpdateProfileData] = value;
         }
       });
 
       // Llamar al servicio para actualizar el perfil en la base de datos
-      console.log('Sending profile data to backend:', profileData);
-      const response = await UserService.updateProfile(profileData);
+      console.log('📤 Enviando datos del perfil al backend:', cleanedProfileData);
+      const response = await UserService.updateProfile(cleanedProfileData);
       
-      console.log('Profile updated successfully in backend:', response);
-      console.log('Response from backend:', JSON.stringify(response, null, 2));
+      console.log('✅ Perfil actualizado exitosamente en el backend:', response);
+      console.log('📥 Respuesta del backend:', JSON.stringify(response, null, 2));
 
       // Actualizar el contexto local con los datos del servidor
       // nameParts ya está declarado arriba, así que lo reutilizamos
@@ -509,23 +525,129 @@ export default function ProfileSettingsScreen() {
       await updateUser(updatedUser);
       console.log('User context updated and saved successfully');
       
-      // Mostrar mensaje de éxito
-      Alert.alert(
-        'Cambios actualizados con éxito',
-        'Tu perfil ha sido actualizado correctamente en la base de datos.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // NO recargar el perfil para evitar que el backend sobrescriba los valores del formulario
-              // El backend podría estar sincronizando name con firstName, así que confiamos en los valores del formulario
-              router.back();
+      // Recargar el perfil desde el backend para asegurar que tenemos los datos más recientes
+      try {
+        const reloadedProfile = await UserService.getProfile();
+        console.log('Profile reloaded from backend:', reloadedProfile);
+        
+        // Actualizar los estados del formulario con los datos recargados
+        const reloadedUsername = reloadedProfile.username?.trim() || reloadedProfile.name?.trim() || '';
+        const reloadedFirstName = reloadedProfile.firstName?.trim() || '';
+        const reloadedLastName = reloadedProfile.lastName?.trim() || '';
+        
+        // Verificar si el username/name del backend es una combinación de firstName/lastName
+        let finalReloadedUsername = reloadedUsername;
+        if (reloadedUsername) {
+          const constructedName = reloadedFirstName && reloadedLastName 
+            ? `${reloadedFirstName} ${reloadedLastName}`.trim()
+            : reloadedFirstName || '';
+          
+          if (reloadedUsername === constructedName || reloadedUsername === reloadedFirstName) {
+            // El backend devolvió una combinación, usar el valor del formulario
+            finalReloadedUsername = username.trim();
+          }
+        } else {
+          finalReloadedUsername = username.trim();
+        }
+        
+        // Actualizar estados del formulario
+        setUsername(finalReloadedUsername || username.trim());
+        setFirstName(reloadedFirstName || firstName.trim());
+        setLastName(reloadedLastName || lastName.trim());
+        setBiography(reloadedProfile.biography || biography);
+        setPhone(reloadedProfile.phone || phone);
+        setBirthDate(reloadedProfile.birthDate ? formatBirthDateFromISO(reloadedProfile.birthDate) : birthDate);
+        if (reloadedProfile.profileImage) {
+          setProfileImage(reloadedProfile.profileImage);
+        }
+        if (reloadedProfile.bannerColor) {
+          setBannerColor(reloadedProfile.bannerColor);
+        }
+        if (reloadedProfile.bannerImage) {
+          setBannerImage(reloadedProfile.bannerImage);
+        }
+        if (reloadedProfile.plan) {
+          setPlan(reloadedProfile.plan as 'Free' | 'VIP');
+        }
+        
+        // Actualizar el contexto con los datos recargados
+        const finalUpdatedUser = {
+          ...updatedUser,
+          ...reloadedProfile,
+          name: finalReloadedUsername || updatedUser.name,
+          firstName: reloadedFirstName || updatedUser.firstName,
+          lastName: reloadedLastName || updatedUser.lastName,
+          biography: reloadedProfile.biography ?? updatedUser.biography,
+          phone: reloadedProfile.phone ?? updatedUser.phone,
+          birthDate: reloadedProfile.birthDate ? formatBirthDateFromISO(reloadedProfile.birthDate) : updatedUser.birthDate,
+          profileImage: reloadedProfile.profileImage ?? updatedUser.profileImage,
+          bannerColor: reloadedProfile.bannerColor ?? updatedUser.bannerColor,
+          bannerImage: reloadedProfile.bannerImage ?? updatedUser.bannerImage,
+          plan: (reloadedProfile.plan as 'Free' | 'VIP') || updatedUser.plan,
+        };
+        
+        await updateUser(finalUpdatedUser);
+        console.log('Profile reloaded and context updated successfully');
+      } catch (reloadError) {
+        console.error('Error reloading profile, but save was successful:', reloadError);
+        // No mostrar error al usuario ya que el guardado fue exitoso
+      }
+      
+      // Mostrar mensaje de éxito con información del backend
+      const successMessage = (response as any).message || 'Tu perfil ha sido actualizado correctamente en la base de datos.';
+      const updatedFields = (response as any).updatedFields || [];
+      
+      let messageText = successMessage;
+      if (updatedFields.length > 0) {
+        const fieldNames: { [key: string]: string } = {
+          firstName: 'nombre',
+          lastName: 'apellido',
+          username: 'nombre de usuario',
+          bio: 'biografía',
+          dateOfBirth: 'fecha de nacimiento',
+          phone: 'teléfono',
+          avatar: 'foto de perfil'
+        };
+        const translatedFields = updatedFields.map((field: string) => fieldNames[field] || field).join(', ');
+        messageText = `${successMessage}\n\nCampos actualizados: ${translatedFields}`;
+      }
+      
+      // Asegurarse de que el mensaje se muestre
+      console.log('✅ Mostrando mensaje de éxito:', messageText);
+      console.log('✅ Response completa:', JSON.stringify(response, null, 2));
+      
+      // Mostrar toast de éxito
+      showToast(messageText, 'success', 5000);
+      
+      // También mostrar Alert como respaldo (para móvil)
+      if (Platform.OS !== 'web') {
+        Alert.alert(
+          '✅ Cambios actualizados con éxito',
+          messageText,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                console.log('✅ Usuario presionó OK, regresando...');
+                router.back();
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      } else {
+        // En web, solo mostrar toast y regresar después de un momento
+        setTimeout(() => {
+          router.back();
+        }, 2000);
+      }
     } catch (error) {
       console.error('Error saving profile:', error);
+      console.error('Error type:', error?.constructor?.name);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        data: (error as any)?.data,
+        status: (error as any)?.status,
+      });
       
       // Detectar si el error es por token expirado
       // Verificar tanto el mensaje como los datos del error (ApiError tiene una propiedad data)
@@ -549,13 +671,6 @@ export default function ProfileSettingsScreen() {
           errorData.message?.includes('Token expired')
         ));
       
-      console.log('Error details:', {
-        message: errorMessage,
-        status: errorStatus,
-        data: errorData,
-        isTokenExpired
-      });
-      
       if (isTokenExpired) {
         // Limpiar el contexto y redirigir al login
         await logout();
@@ -574,8 +689,74 @@ export default function ProfileSettingsScreen() {
         return;
       }
       
-      const finalErrorMessage = error instanceof Error ? error.message : 'No se pudo guardar el perfil';
-      Alert.alert('Error', finalErrorMessage);
+      // Extraer mensaje del error del backend (priorizar mensajes del backend)
+      const backendErrorMessage = errorData?.error || errorData?.message || errorMessage;
+      const backendErrorField = errorData?.field;
+      
+      // Determinar el mensaje de error más específico
+      let finalErrorMessage = 'No se pudo guardar el perfil. Por favor, intenta nuevamente.';
+      
+      // Priorizar mensajes del backend
+      if (errorData?.error) {
+        finalErrorMessage = errorData.error;
+      } else if (errorData?.message) {
+        finalErrorMessage = errorData.message;
+      } else if (errorMessage && errorMessage !== 'Error' && !errorMessage.includes('Network')) {
+        finalErrorMessage = errorMessage;
+      }
+      
+      // Agregar información del campo si está disponible
+      if (backendErrorField) {
+        const fieldNames: { [key: string]: string } = {
+          username: 'nombre de usuario',
+          firstName: 'nombre',
+          lastName: 'apellido',
+          bio: 'biografía',
+          dateOfBirth: 'fecha de nacimiento',
+          phone: 'teléfono',
+          avatar: 'foto de perfil'
+        };
+        const fieldName = fieldNames[backendErrorField] || backendErrorField;
+        finalErrorMessage = `${finalErrorMessage}\n\nCampo: ${fieldName}`;
+      }
+      
+      // Determinar el título del alert según el tipo de error
+      let alertTitle = '❌ Error al guardar perfil';
+      
+      if (errorStatus === 400) {
+        alertTitle = '⚠️ Error de validación';
+      } else if (errorStatus === 409) {
+        alertTitle = '⚠️ Conflicto';
+      } else if (errorStatus === 401) {
+        alertTitle = '🔐 Sesión expirada';
+      } else if (errorStatus === 500) {
+        alertTitle = '❌ Error del servidor';
+      }
+      
+      // Asegurarse de que el mensaje de error se muestre
+      console.log('❌ Mostrando mensaje de error:', alertTitle, finalErrorMessage);
+      console.log('❌ Error completo:', {
+        status: errorStatus,
+        message: errorMessage,
+        data: errorData
+      });
+      
+      // Mostrar toast de error
+      showToast(finalErrorMessage, 'error', 6000);
+      
+      // También mostrar Alert como respaldo (para móvil)
+      if (Platform.OS !== 'web') {
+        Alert.alert(
+          alertTitle,
+          finalErrorMessage,
+          [{ 
+            text: 'OK',
+            onPress: () => {
+              console.log('❌ Usuario presionó OK en el error');
+            }
+          }]
+        );
+      }
     } finally {
       setSaving(false);
     }

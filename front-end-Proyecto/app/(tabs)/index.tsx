@@ -15,6 +15,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFeatured, usePopular } from '@/hooks/useCatalog';
+import { usePodcasts } from '@/hooks/usePodcasts';
 import { exampleSongs } from '@/data/exampleSongs';
 import { popularArtists } from '@/data/artists';
 import { examplePodcasts } from '@/data/podcasts';
@@ -26,6 +27,7 @@ export default function HomeScreen() {
   const { isAuthenticated, user } = useAuth();
   const { featured, isLoading: featuredLoading } = useFeatured();
   const { popular, isLoading: popularLoading } = usePopular();
+  const { podcasts, isLoading: podcastsLoading } = usePodcasts();
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
 
@@ -150,7 +152,7 @@ export default function HomeScreen() {
         {/* Podcasts - Recuadros */}
         {renderSection(
           'Podcasts',
-          examplePodcasts,
+          podcasts.length > 0 ? podcasts : examplePodcasts, // Usar podcasts del API si están disponibles
           (podcast) => {
             // Navegar a pantalla de podcast o reproducir directamente
             router.push(`/podcast/${podcast.id}`);
@@ -182,7 +184,9 @@ export default function HomeScreen() {
         {/* Canciones destacadas - Usar canciones de ejemplo si no hay datos del API */}
         {renderSection(
           'Canciones destacadas',
-          (featured?.albums && featured.albums.length > 0) ? featured.albums.slice(0, 10) : exampleSongs,
+          (featured?.albums && featured.albums.length > 0) 
+            ? featured.albums.slice(0, 10) 
+            : exampleSongs.filter(song => !song.isExample), // Excluir podcasts de las canciones destacadas
           (item) => {
             // Navegar al reproductor o detalle
             router.push('/now-playing');

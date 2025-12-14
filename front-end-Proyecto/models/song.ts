@@ -6,6 +6,7 @@ export interface Song {
   coverUrl: string;
   audioUrl: string;
   youtubeId?: string; // ID de YouTube si la canción viene de YouTube
+  isExample?: boolean; // Indica si es una canción de ejemplo (no reproducible pero agregable a favoritos)
   createdAt?: string;
   updatedAt?: string;
 }

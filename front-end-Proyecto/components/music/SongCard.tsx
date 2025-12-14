@@ -18,13 +18,18 @@ type Props = {
 };
 
 export default function SongCard({
-  coverUrl, title, artist, coverStyle, titleStyle, artistStyle, containerStyle, onLikePress, onMenuPress,
+  coverUrl, title, artist, coverStyle, titleStyle, artistStyle, containerStyle, onLikePress, onMenuPress, isLiked: isLikedProp = false,
 }: Props) {
-  const [isLiked, setIsLiked] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState(coverUrl || '');
+  // Usar el prop isLiked si está disponible, sino usar estado local como fallback
+  const [localIsLiked, setLocalIsLiked] = useState(false);
+  const isLiked = isLikedProp !== undefined ? isLikedProp : localIsLiked;
 
   const handleLikePress = () => {
-    setIsLiked(!isLiked);
+    // Solo actualizar estado local si no se está usando el prop
+    if (isLikedProp === undefined) {
+      setLocalIsLiked(!localIsLiked);
+    }
     onLikePress?.();
   };
 

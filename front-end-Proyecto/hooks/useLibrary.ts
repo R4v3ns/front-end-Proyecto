@@ -164,7 +164,12 @@ export const useLikeSong = () => {
   return useMutation({
     mutationFn: (songId: number) => LibraryService.likeSong(songId),
     onSuccess: () => {
+      // Invalidar la query de liked songs para refrescar la lista
       queryClient.invalidateQueries({ queryKey: ['likedSongs'] });
+      console.log('✅ Like agregado exitosamente, lista de likes actualizada');
+    },
+    onError: (error) => {
+      console.error('❌ Error al dar like:', error);
     },
   });
 };
@@ -178,9 +183,15 @@ export const useUnlikeSong = () => {
   return useMutation({
     mutationFn: (songId: number) => LibraryService.unlikeSong(songId),
     onSuccess: () => {
+      // Invalidar la query de liked songs para refrescar la lista
       queryClient.invalidateQueries({ queryKey: ['likedSongs'] });
+      console.log('✅ Like removido exitosamente, lista de likes actualizada');
+    },
+    onError: (error) => {
+      console.error('❌ Error al quitar like:', error);
     },
   });
 };
+
 
 

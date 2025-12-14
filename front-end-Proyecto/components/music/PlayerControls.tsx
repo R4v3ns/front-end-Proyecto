@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 type Props = {
@@ -9,6 +9,8 @@ type Props = {
   onTogglePlayPause?: () => void;
   onShufflePress?: () => void;
   onRepeatPress?: () => void;
+  isShuffle?: boolean;
+  repeatMode?: 'off' | 'all' | 'one';
 };
 
 export default function PlayerControls({
@@ -18,6 +20,8 @@ export default function PlayerControls({
   onTogglePlayPause,
   onShufflePress,
   onRepeatPress,
+  isShuffle = false,
+  repeatMode = 'off',
 }: Props) {
   return (
     <View style={styles.container}>
@@ -58,17 +62,36 @@ export default function PlayerControls({
         <TouchableOpacity 
           onPress={onShufflePress} 
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={styles.secondaryButton}
+          style={[
+            styles.secondaryButton,
+            isShuffle && styles.activeButton
+          ]}
         >
-          <Ionicons name="shuffle" size={20} color="#b3b3b3" />
+          <Ionicons 
+            name="shuffle" 
+            size={20} 
+            color={isShuffle ? "#F22976" : "#b3b3b3"} 
+          />
         </TouchableOpacity>
 
         <TouchableOpacity 
           onPress={onRepeatPress} 
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={styles.secondaryButton}
+          style={[
+            styles.secondaryButton,
+            repeatMode !== 'off' && styles.activeButton
+          ]}
         >
-          <Ionicons name="repeat" size={20} color="#b3b3b3" />
+          <Ionicons 
+            name="repeat" 
+            size={20} 
+            color={repeatMode !== 'off' ? "#F22976" : "#b3b3b3"} 
+          />
+          {repeatMode === 'one' && (
+            <View style={styles.repeatOneIndicator}>
+              <Text style={styles.repeatOneText}>1</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -127,6 +150,30 @@ const styles = StyleSheet.create({
     height: 36, // Reducido de 40 a 36
     justifyContent: "center",
     alignItems: "center",
+    position: 'relative',
+  },
+  activeButton: {
+    // El color ya se maneja en el icono, pero podemos agregar un efecto visual adicional
+    opacity: 1,
+  },
+  repeatOneIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#F22976',
+    borderRadius: 8,
+    width: 14,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#121212',
+  },
+  repeatOneText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: 'bold',
+    lineHeight: 10,
   },
 });
 
