@@ -177,5 +177,14 @@ export const ENDPOINTS = {
     LIKE_SONG: (songId: number) => `/api/library/liked-songs/${songId}`,
     UNLIKE_SONG: (songId: number) => `/api/library/liked-songs/${songId}`,
   },
+  QUEUE: {
+    // Cola de reproducción
+    GET_QUEUE: '/api/queue',
+    ADD_TO_QUEUE: '/api/queue',
+    ADD_MULTIPLE_TO_QUEUE: '/api/queue/multiple',
+    REMOVE_FROM_QUEUE: '/api/queue',
+    REORDER_QUEUE: '/api/queue/reorder',
+    CLEAR_QUEUE: '/api/queue',
+  },
 } as const;
 

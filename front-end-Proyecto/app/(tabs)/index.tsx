@@ -125,7 +125,7 @@ export default function HomeScreen() {
         <View style={styles.sectionHeader}>
           <ThemedText style={dynamicStyles.sectionTitle}>{title}</ThemedText>
           <TouchableOpacity>
-            <ThemedText style={styles.showAllLink}>Ver todo</ThemedText>
+            <ThemedText style={styles.showAllLink}>{t('home.seeAll')}</ThemedText>
           </TouchableOpacity>
         </View>
         <ScrollView
@@ -149,13 +149,13 @@ export default function HomeScreen() {
         <View style={styles.emptyState}>
           <Ionicons name="musical-notes-outline" size={64} color="#666666" />
           <ThemedText style={dynamicStyles.emptyStateText}>
-            {t('home.greeting')}, {t('common.back')}
+            {t('home.loginMessage')}
           </ThemedText>
           <TouchableOpacity
             style={styles.loginButton}
             onPress={() => router.push('/auth?screen=login')}
           >
-            <ThemedText style={styles.loginButtonText}>Iniciar sesión</ThemedText>
+            <ThemedText style={styles.loginButtonText}>{t('home.loginButton')}</ThemedText>
           </TouchableOpacity>
         </View>
       </ThemedView>
@@ -183,7 +183,7 @@ export default function HomeScreen() {
             {t('home.greeting')}, {getUserDisplayName()}
           </ThemedText>
           <ThemedText style={styles.subtitleText}>
-            ¿Qué deseas escuchar hoy?
+            {t('home.subtitle')}
           </ThemedText>
         </View>
 

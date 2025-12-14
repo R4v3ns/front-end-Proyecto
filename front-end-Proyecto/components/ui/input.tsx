@@ -49,9 +49,9 @@ export function Input({
         <TextInput
           style={[
             styles.input,
-            { color: textColor, backgroundColor: 'transparent' },
+            { color: '#FFFFFF', backgroundColor: 'transparent' }, // Texto blanco para contraste con fondo negro
           ]}
-          placeholderTextColor={iconColor}
+          placeholderTextColor="#B3B3B3" // Gris claro para placeholder
           secureTextEntry={actualSecureTextEntry}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: isSmallScreen ? 14 : 12,
     minHeight: isSmallScreen ? 52 : 48,
-    backgroundColor: '#282828',
+    backgroundColor: '#000000', // Fondo negro
   },
   input: {
     flex: 1,

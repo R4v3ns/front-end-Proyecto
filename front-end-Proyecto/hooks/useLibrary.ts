@@ -168,8 +168,14 @@ export const useLikeSong = () => {
       queryClient.invalidateQueries({ queryKey: ['likedSongs'] });
       console.log('✅ Like agregado exitosamente, lista de likes actualizada');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('❌ Error al dar like:', error);
+      // Si el error es 409 (conflicto - ya está en likes), invalidar la query igualmente
+      // para que la UI se actualice y muestre que la canción está liked
+      if (error?.status === 409) {
+        console.log('⚠️ Canción ya está en likes (409), invalidando query para refrescar UI');
+        queryClient.invalidateQueries({ queryKey: ['likedSongs'] });
+      }
     },
   });
 };
@@ -192,6 +198,7 @@ export const useUnlikeSong = () => {
     },
   });
 };
+
 
 
 

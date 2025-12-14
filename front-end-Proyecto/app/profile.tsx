@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const { width, height } = Dimensions.get('window');
 const isMobile = width < 768;
@@ -93,6 +94,7 @@ const popularArtists = [
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
@@ -242,19 +244,19 @@ export default function ProfileScreen() {
           {/* Bienvenida con nombre del usuario */}
           <View style={[styles.welcomeSection, isMobile && styles.welcomeSectionMobile]}>
             <ThemedText style={[styles.welcomeTitle, isMobile && styles.welcomeTitleMobile]} numberOfLines={2}>
-              ¡Bienvenido, {getUserDisplayName()}!
+              {t('home.greeting')}, {getUserDisplayName()}!
             </ThemedText>
             <ThemedText style={[styles.welcomeSubtitle, isMobile && styles.welcomeSubtitleMobile]}>
-              ¿Qué quieres escuchar hoy?
+              {t('home.subtitle')}
             </ThemedText>
           </View>
 
           {/* Canciones del momento */}
           <View style={[styles.section, isMobile && styles.sectionMobile]}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={[styles.sectionTitle, isMobile && styles.sectionTitleMobile]}>Canciones del momento</ThemedText>
+              <ThemedText style={[styles.sectionTitle, isMobile && styles.sectionTitleMobile]}>{t('home.featuredSongs')}</ThemedText>
               <TouchableOpacity>
-                <ThemedText style={styles.showAllLink}>Mostrar todo</ThemedText>
+                <ThemedText style={styles.showAllLink}>{t('home.seeAll')}</ThemedText>
               </TouchableOpacity>
             </View>
             <ScrollView
@@ -291,9 +293,9 @@ export default function ProfileScreen() {
           {/* Artistas populares */}
           <View style={[styles.section, isMobile && styles.sectionMobile]}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={[styles.sectionTitle, isMobile && styles.sectionTitleMobile]}>Artistas populares</ThemedText>
+              <ThemedText style={[styles.sectionTitle, isMobile && styles.sectionTitleMobile]}>{t('home.artists')}</ThemedText>
               <TouchableOpacity>
-                <ThemedText style={styles.showAllLink}>Mostrar todo</ThemedText>
+                <ThemedText style={styles.showAllLink}>{t('home.seeAll')}</ThemedText>
               </TouchableOpacity>
             </View>
             <ScrollView

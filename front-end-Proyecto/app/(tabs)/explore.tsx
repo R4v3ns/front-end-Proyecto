@@ -14,6 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFeatured, useNewReleases, usePopular, useGenres } from '@/hooks/useCatalog';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const { width } = Dimensions.get('window');
 const isMobile = width < 768;
@@ -23,6 +24,7 @@ const isMobile = width < 768;
  * Pantalla para explorar álbumes, artistas, géneros y contenido destacado
  */
 export default function ExploreScreen() {
+  const { t } = useTranslation();
   const { featured, isLoading: featuredLoading, refetch: refetchFeatured } = useFeatured();
   const { albums: newReleases, isLoading: newReleasesLoading, refetch: refetchNewReleases } = useNewReleases();
   const { popular, isLoading: popularLoading, refetch: refetchPopular } = usePopular();
@@ -60,7 +62,7 @@ export default function ExploreScreen() {
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
           <ThemedText style={styles.emptyMessage}>
-            {emptyMessage || 'No hay contenido disponible'}
+            {emptyMessage || t('explore.noContent')}
           </ThemedText>
         </View>
       );
@@ -71,7 +73,7 @@ export default function ExploreScreen() {
         <View style={styles.sectionHeader}>
           <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
           <TouchableOpacity>
-            <ThemedText style={styles.showAllLink}>Ver todo</ThemedText>
+            <ThemedText style={styles.showAllLink}>{t('explore.seeAll')}</ThemedText>
           </TouchableOpacity>
         </View>
         <ScrollView
@@ -101,7 +103,7 @@ export default function ExploreScreen() {
       >
         {/* Nuevos lanzamientos */}
         {renderSection(
-          'Nuevos lanzamientos',
+          t('explore.newReleases'),
           newReleases,
           (album) => {
             // Navegar a detalles del álbum
@@ -133,12 +135,12 @@ export default function ExploreScreen() {
               </ThemedText>
             </TouchableOpacity>
           ),
-          'No hay nuevos lanzamientos disponibles'
+          t('explore.newReleasesEmpty')
         )}
 
         {/* Artistas populares */}
         {renderSection(
-          'Artistas populares',
+          t('explore.popularArtists'),
           popular.artists,
           (artist) => {
             router.push(`/artist/${artist.id}`);
@@ -163,12 +165,12 @@ export default function ExploreScreen() {
               </ThemedText>
             </TouchableOpacity>
           ),
-          'No hay artistas populares disponibles'
+          t('explore.popularArtistsEmpty')
         )}
 
         {/* Álbumes populares */}
         {renderSection(
-          'Álbumes populares',
+          t('explore.popularAlbums'),
           popular.albums,
           (album) => {
             router.push(`/album/${album.id}`);
@@ -199,12 +201,12 @@ export default function ExploreScreen() {
               </ThemedText>
             </TouchableOpacity>
           ),
-          'No hay álbumes populares disponibles'
+          t('explore.popularAlbumsEmpty')
         )}
 
         {/* Géneros */}
         {renderSection(
-          'Explorar por género',
+          t('explore.genres'),
           genres,
           (genre) => {
             router.push(`/genre/${genre.id}`);
@@ -241,13 +243,13 @@ export default function ExploreScreen() {
               </ThemedText>
             </TouchableOpacity>
           ),
-          'No hay géneros disponibles'
+          t('explore.genresEmpty')
         )}
 
         {/* Contenido destacado */}
         {featured.albums.length > 0 && (
           renderSection(
-            'Destacado',
+            t('explore.featured'),
             featured.albums,
             (album) => {
               router.push(`/album/${album.id}`);

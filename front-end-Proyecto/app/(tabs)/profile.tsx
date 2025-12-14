@@ -8,12 +8,14 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const { width } = Dimensions.get('window');
 const isMobile = width < 768;
 
 export default function ProfileTabScreen() {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
@@ -77,14 +79,14 @@ export default function ProfileTabScreen() {
     if (user?.name) {
       return user.name.trim();
     }
-    return user?.email?.split('@')[0] || 'Usuario';
+    return user?.email?.split('@')[0] || t('profile.user');
   };
 
   return (
     <ThemedView style={dynamicStyles.container}>
       {/* Header */}
       <ThemedView style={dynamicStyles.header}>
-        <ThemedText style={dynamicStyles.headerTitle}>Perfil</ThemedText>
+        <ThemedText style={dynamicStyles.headerTitle}>{t('profile.title')}</ThemedText>
         <TouchableOpacity onPress={() => router.push('/profile-settings')}>
           <Ionicons name="settings-outline" size={24} color={textColor} />
         </TouchableOpacity>
@@ -121,7 +123,7 @@ export default function ProfileTabScreen() {
             onPress={() => router.push('/profile-settings')}
           >
             <Ionicons name="person-outline" size={24} color={textColor} />
-            <ThemedText style={dynamicStyles.optionText}>Editar perfil</ThemedText>
+            <ThemedText style={dynamicStyles.optionText}>{t('profile.editProfile')}</ThemedText>
             <Ionicons name="chevron-forward" size={20} color={userEmailColor} />
           </TouchableOpacity>
 
@@ -130,7 +132,7 @@ export default function ProfileTabScreen() {
             onPress={() => router.push('/change-password')}
           >
             <Ionicons name="lock-closed-outline" size={24} color={textColor} />
-            <ThemedText style={dynamicStyles.optionText}>Cambiar contraseña</ThemedText>
+            <ThemedText style={dynamicStyles.optionText}>{t('profile.changePassword')}</ThemedText>
             <Ionicons name="chevron-forward" size={20} color={userEmailColor} />
           </TouchableOpacity>
 
@@ -139,13 +141,13 @@ export default function ProfileTabScreen() {
             onPress={() => router.push('/account-preferences')}
           >
             <Ionicons name="settings-outline" size={24} color={textColor} />
-            <ThemedText style={dynamicStyles.optionText}>Preferencias</ThemedText>
+            <ThemedText style={dynamicStyles.optionText}>{t('profile.preferences')}</ThemedText>
             <Ionicons name="chevron-forward" size={20} color={userEmailColor} />
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.optionItem, dynamicStyles.optionItem]} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={24} color="#F22976" />
-            <ThemedText style={[styles.optionText, dynamicStyles.optionText, styles.logoutText]}>Cerrar sesión</ThemedText>
+            <ThemedText style={[styles.optionText, dynamicStyles.optionText, styles.logoutText]}>{t('profile.logout')}</ThemedText>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -237,5 +239,6 @@ const styles = StyleSheet.create({
     color: '#F22976', // Rosa para logout
   },
 });
+
 
 

@@ -10,6 +10,8 @@ import PlayerControls from "@/components/music/PlayerControls";
 import SongCard from "@/components/music/SongCard";
 import ScreenHeader from "@/components/music/ScreenHeader";
 import { usePlaylists, useAddSongToPlaylist, useLikeSong, useUnlikeSong, useLikedSongs } from "@/hooks/useLibrary";
+import { useAddToQueueNext, useAddToQueueEnd } from "@/hooks/useQueue";
+import QueueModal from "@/components/music/QueueModal";
 import { exampleSongs } from "@/data/exampleSongs";
 import { useAuth } from '@/contexts/AuthContext';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -20,11 +22,15 @@ export default function NowPlayingScreen() {
   const params = useLocalSearchParams<{ songId?: string }>();
   const { songs: apiSongs, isLoading } = useSongs();
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [showQueueModal, setShowQueueModal] = useState(false);
+  const [showMenuModal, setShowMenuModal] = useState(false);
   const { playlists, isLoading: playlistsLoading } = usePlaylists();
   const addSongToPlaylist = useAddSongToPlaylist();
   const likeSong = useLikeSong();
   const unlikeSong = useUnlikeSong();
-  const { songs: likedSongs } = useLikedSongs();
+  const { songs: likedSongs, refetch: refetchLikedSongs } = useLikedSongs();
+  const addToQueueNext = useAddToQueueNext();
+  const addToQueueEnd = useAddToQueueEnd();
   const { isAuthenticated } = useAuth();
   
   // Colores dinámicos del tema
@@ -303,6 +309,14 @@ export default function NowPlayingScreen() {
       <ScreenHeader 
         title="Reproductor" 
         onClose={() => router.back()}
+        rightAction={
+          <TouchableOpacity
+            onPress={() => setShowQueueModal(true)}
+            style={styles.queueButton}
+          >
+            <Ionicons name="list" size={24} color={textColor} />
+          </TouchableOpacity>
+        }
       />
 
       <View style={styles.content}>
@@ -360,6 +374,10 @@ export default function NowPlayingScreen() {
                 
                 // Verificar si es un error de validación del backend (409 = conflicto, como "Ya has dado like")
                 if (errorStatus === 409) {
+                  // Invalidar la query para refrescar la lista y mostrar que la canción está liked
+                  // El hook useLikeSong ya invalida la query en onError cuando es 409, pero refrescamos manualmente también
+                  await refetchLikedSongs();
+                  
                   Alert.alert(
                     '⚠️ Ya existe',
                     errorMessage || 'Esta canción ya está en tus favoritos'
@@ -433,7 +451,7 @@ export default function NowPlayingScreen() {
                 );
               }
             }}
-            onMenuPress={() => setShowPlaylistModal(true)}
+            onMenuPress={() => setShowMenuModal(true)}
           />
         </View>
 
@@ -471,6 +489,102 @@ export default function NowPlayingScreen() {
           />
         </View>
       </View>
+
+      {/* Modal de menú de acciones */}
+      <Modal
+        visible={showMenuModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMenuModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenuModal(false)}
+        >
+          <View style={[styles.menuModalContent, dynamicStyles.modalContent]}>
+            {!isAuthenticated ? (
+              <TouchableOpacity
+                style={[styles.menuItem, dynamicStyles.modalPlaylistItem]}
+                onPress={() => {
+                  setShowMenuModal(false);
+                  router.push('/auth');
+                }}
+              >
+                <Ionicons name="log-in-outline" size={24} color={textColor} />
+                <Text style={[styles.menuItemText, dynamicStyles.modalPlaylistName]}>
+                  Iniciar sesión para más opciones
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[styles.menuItem, dynamicStyles.modalPlaylistItem]}
+                  onPress={async () => {
+                    if (!currentSong) return;
+                    try {
+                      await addToQueueNext.mutateAsync(currentSong.id);
+                      setShowMenuModal(false);
+                      Alert.alert('✅ Éxito', 'Canción agregada para reproducir después');
+                    } catch (error: any) {
+                      Alert.alert('Error', error?.message || 'No se pudo agregar a la cola');
+                    }
+                  }}
+                  disabled={addToQueueNext.isLoading}
+                >
+                  <Ionicons name="add-circle-outline" size={24} color={textColor} />
+                  <Text style={[styles.menuItemText, dynamicStyles.modalPlaylistName]}>
+                    Agregar a cola (siguiente)
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.menuItem, dynamicStyles.modalPlaylistItem]}
+                  onPress={async () => {
+                    if (!currentSong) return;
+                    try {
+                      await addToQueueEnd.mutateAsync(currentSong.id);
+                      setShowMenuModal(false);
+                      Alert.alert('✅ Éxito', 'Canción agregada al final de la cola');
+                    } catch (error: any) {
+                      Alert.alert('Error', error?.message || 'No se pudo agregar a la cola');
+                    }
+                  }}
+                  disabled={addToQueueEnd.isLoading}
+                >
+                  <Ionicons name="add-outline" size={24} color={textColor} />
+                  <Text style={[styles.menuItemText, dynamicStyles.modalPlaylistName]}>
+                    Agregar al final de la cola
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.menuItem, dynamicStyles.modalPlaylistItem]}
+                  onPress={() => {
+                    setShowMenuModal(false);
+                    setShowPlaylistModal(true);
+                  }}
+                >
+                  <Ionicons name="musical-notes-outline" size={24} color={textColor} />
+                  <Text style={[styles.menuItemText, dynamicStyles.modalPlaylistName]}>
+                    Agregar a playlist
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.menuItem, dynamicStyles.modalPlaylistItem]}
+                  onPress={() => {
+                    setShowMenuModal(false);
+                    setShowQueueModal(true);
+                  }}
+                >
+                  <Ionicons name="list-outline" size={24} color={textColor} />
+                  <Text style={[styles.menuItemText, dynamicStyles.modalPlaylistName]}>
+                    Ver cola de reproducción
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Modal de selección de playlist */}
       <Modal
@@ -537,6 +651,12 @@ export default function NowPlayingScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de cola de reproducción */}
+      <QueueModal
+        visible={showQueueModal}
+        onClose={() => setShowQueueModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -702,6 +822,35 @@ const styles = StyleSheet.create({
   modalPlaylistCount: {
     fontSize: 14,
     // color se aplica dinámicamente
+  },
+  queueButton: {
+    padding: 4,
+  },
+  menuModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    width: '80%',
+    maxWidth: 400,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  menuItemText: {
+    fontSize: 16,
+    marginLeft: 12,
+    flex: 1,
   },
 });
 

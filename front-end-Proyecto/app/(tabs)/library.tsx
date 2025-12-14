@@ -21,12 +21,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Playlist } from '@/models/playlist';
 import { Song } from '@/models/song';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const { width } = Dimensions.get('window');
 const isMobile = width < 768;
 
 export default function LibraryScreen() {
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'playlists' | 'liked'>('playlists');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
@@ -158,7 +160,7 @@ export default function LibraryScreen() {
 
   const handleCreatePlaylist = async () => {
     if (!newPlaylistName.trim()) {
-      Alert.alert('Error', 'El nombre de la playlist es requerido');
+      Alert.alert(t('common.error') || 'Error', t('library.nameRequired'));
       return;
     }
 
@@ -169,27 +171,27 @@ export default function LibraryScreen() {
       });
       setNewPlaylistName('');
       setShowCreateModal(false);
-      Alert.alert('Éxito', 'Playlist creada correctamente');
+      Alert.alert(t('common.success') || 'Éxito', t('library.createSuccess'));
     } catch (error) {
-      Alert.alert('Error', 'No se pudo crear la playlist');
+      Alert.alert(t('common.error') || 'Error', t('library.createError'));
     }
   };
 
   const handleDeletePlaylist = (playlist: Playlist) => {
     Alert.alert(
-      'Eliminar playlist',
-      `¿Estás seguro de que quieres eliminar "${playlist.name}"?`,
+      t('library.deletePlaylist'),
+      t('library.deleteConfirm').replace('{name}', playlist.name),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Eliminar',
+          text: t('common.delete') || 'Eliminar',
           style: 'destructive',
           onPress: async () => {
             try {
               await deletePlaylist.mutateAsync(playlist.id);
-              Alert.alert('Éxito', 'Playlist eliminada');
+              Alert.alert(t('common.success') || 'Éxito', t('library.deleteSuccess'));
             } catch (error) {
-              Alert.alert('Error', 'No se pudo eliminar la playlist');
+              Alert.alert(t('common.error') || 'Error', t('library.deleteError'));
             }
           },
         },
@@ -219,7 +221,7 @@ export default function LibraryScreen() {
           {playlist.name}
         </ThemedText>
         <ThemedText style={[styles.playlistMeta, dynamicStyles.playlistMeta]}>
-          {playlist.songCount || 0} canciones
+          {playlist.songCount || 0} {t('library.songs')}
         </ThemedText>
       </View>
       <TouchableOpacity
@@ -259,13 +261,13 @@ export default function LibraryScreen() {
         <View style={styles.emptyState}>
           <Ionicons name="library-outline" size={64} color="#666666" />
           <ThemedText style={dynamicStyles.emptyStateText}>
-            Inicia sesión para ver tu biblioteca
+            {t('library.emptyLogin')}
           </ThemedText>
           <TouchableOpacity
             style={styles.loginButton}
             onPress={() => router.push('/auth?screen=login')}
           >
-            <ThemedText style={styles.loginButtonText}>Iniciar sesión</ThemedText>
+            <ThemedText style={styles.loginButtonText}>{t('home.loginButton')}</ThemedText>
           </TouchableOpacity>
         </View>
       </ThemedView>
@@ -276,7 +278,7 @@ export default function LibraryScreen() {
     <ThemedView style={dynamicStyles.container}>
       {/* Header */}
       <View style={dynamicStyles.header}>
-        <ThemedText style={dynamicStyles.headerTitle}>Tu biblioteca</ThemedText>
+          <ThemedText style={dynamicStyles.headerTitle}>{t('library.title')}</ThemedText>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowCreateModal(true)}
@@ -294,7 +296,7 @@ export default function LibraryScreen() {
           <ThemedText
             style={[dynamicStyles.tabText, activeTab === 'playlists' && dynamicStyles.tabTextActive]}
           >
-            Playlists
+            {t('library.playlists')}
           </ThemedText>
         </TouchableOpacity>
         <TouchableOpacity
@@ -304,7 +306,7 @@ export default function LibraryScreen() {
           <ThemedText
             style={[dynamicStyles.tabText, activeTab === 'liked' && dynamicStyles.tabTextActive]}
           >
-            Canciones que te gustan
+            {t('library.liked')}
           </ThemedText>
         </TouchableOpacity>
       </View>
@@ -329,16 +331,16 @@ export default function LibraryScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="list-outline" size={64} color="#666666" />
               <ThemedText style={dynamicStyles.emptyStateText}>
-                No tienes playlists aún
+                {t('library.emptyPlaylists')}
               </ThemedText>
               <ThemedText style={[styles.emptyStateSubtext, dynamicStyles.emptyStateSubtext]}>
-                Crea tu primera playlist para comenzar
+                {t('library.emptyPlaylistsSubtext')}
               </ThemedText>
               <TouchableOpacity
                 style={styles.createButton}
                 onPress={() => setShowCreateModal(true)}
               >
-                <ThemedText style={styles.createButtonText}>Crear playlist</ThemedText>
+                <ThemedText style={styles.createButtonText}>{t('library.createPlaylist')}</ThemedText>
               </TouchableOpacity>
             </View>
           ) : (
@@ -350,10 +352,10 @@ export default function LibraryScreen() {
           <View style={styles.emptyState}>
             <Ionicons name="heart-outline" size={64} color="#666666" />
             <ThemedText style={dynamicStyles.emptyStateText}>
-              No tienes canciones guardadas
+              {t('library.emptyLiked')}
             </ThemedText>
             <ThemedText style={styles.emptyStateSubtext}>
-              Dale like a las canciones que te gusten
+              {t('library.emptyLikedSubtext')}
             </ThemedText>
           </View>
         ) : (
@@ -367,10 +369,10 @@ export default function LibraryScreen() {
       {showCreateModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <ThemedText style={styles.modalTitle}>Crear nueva playlist</ThemedText>
+            <ThemedText style={styles.modalTitle}>{t('library.createPlaylistTitle')}</ThemedText>
             <TextInput
               style={styles.modalInput}
-              placeholder="Nombre de la playlist"
+              placeholder={t('library.playlistNamePlaceholder')}
               placeholderTextColor="#999999"
               value={newPlaylistName}
               onChangeText={setNewPlaylistName}
@@ -384,7 +386,7 @@ export default function LibraryScreen() {
                   setNewPlaylistName('');
                 }}
               >
-                <ThemedText style={styles.modalButtonText}>Cancelar</ThemedText>
+                <ThemedText style={styles.modalButtonText}>{t('common.cancel')}</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCreate]}
@@ -392,7 +394,7 @@ export default function LibraryScreen() {
                 disabled={createPlaylist.isPending}
               >
                 <ThemedText style={styles.modalButtonText}>
-                  {createPlaylist.isPending ? 'Creando...' : 'Crear'}
+                  {createPlaylist.isPending ? t('library.creating') : t('library.create')}
                 </ThemedText>
               </TouchableOpacity>
             </View>
@@ -623,6 +625,7 @@ const styles = StyleSheet.create({
     color: '#000000', // Texto negro
   },
 });
+
 
 
 

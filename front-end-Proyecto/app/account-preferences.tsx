@@ -165,6 +165,15 @@ export default function AccountPreferencesScreen() {
     sectionDescription: {
       color: isDark ? '#E0E0E0' : '#666666', // Gris más claro y visible en dark
     },
+    modalOptionText: {
+      color: isDark ? '#F22976' : '#000000', // Rosa en dark, negro en light
+    },
+    modalOptionTextSelected: {
+      color: '#F22976', // Siempre rosa para texto seleccionado
+    },
+    modalCancelText: {
+      color: isDark ? '#F22976' : '#000000', // Rosa en dark, negro en light
+    },
   }), [backgroundColor, textColor, borderColor, optionButtonBg, optionButtonBorder, modalBg, modalBorder, modalOptionBg, modalOptionBorder, modalCancelBg, switchOptionBg, switchOptionBorder, isDark]);
   
   // Debug: Log preferences cuando cambian
@@ -808,7 +817,11 @@ export default function AccountPreferencesScreen() {
                       }
                     }}
                   >
-                    <ThemedText style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                    <ThemedText style={[
+                      styles.modalOptionText, 
+                      dynamicStyles.modalOptionText,
+                      isSelected && [styles.modalOptionTextSelected, dynamicStyles.modalOptionTextSelected]
+                    ]}>
                       {isSelected ? '✓ ' : ''}{lang.name}
                     </ThemedText>
                   </TouchableOpacity>
@@ -825,7 +838,7 @@ export default function AccountPreferencesScreen() {
               onPressOut={() => setPressedButton(null)}
               onPress={() => setShowLanguageModal(false)}
             >
-              <ThemedText style={styles.modalCancelText}>{t('common.cancel')}</ThemedText>
+              <ThemedText style={[styles.modalCancelText, dynamicStyles.modalCancelText]}>{t('common.cancel')}</ThemedText>
             </TouchableOpacity>
           </ThemedView>
         </View>
@@ -898,7 +911,11 @@ export default function AccountPreferencesScreen() {
                     delayPressOut={100}
                     activeOpacity={0.7}
                   >
-                    <ThemedText style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                    <ThemedText style={[
+                      styles.modalOptionText, 
+                      dynamicStyles.modalOptionText,
+                      isSelected && [styles.modalOptionTextSelected, dynamicStyles.modalOptionTextSelected]
+                    ]}>
                       {isSelected ? '✓ ' : ''}{theme.label} - {theme.description}
                     </ThemedText>
                   </TouchableOpacity>
@@ -915,7 +932,7 @@ export default function AccountPreferencesScreen() {
               onPressOut={() => setPressedButton(null)}
               onPress={() => setShowThemeModal(false)}
             >
-              <ThemedText style={styles.modalCancelText}>{t('common.cancel')}</ThemedText>
+              <ThemedText style={[styles.modalCancelText, dynamicStyles.modalCancelText]}>{t('common.cancel')}</ThemedText>
             </TouchableOpacity>
           </ThemedView>
         </View>

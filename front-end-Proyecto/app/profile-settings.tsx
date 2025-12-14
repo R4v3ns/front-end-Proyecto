@@ -18,7 +18,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePreferences } from '@/contexts/PreferencesContext';
-// import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { UserService, UpdateProfileData } from '@/services/user';
@@ -57,57 +57,59 @@ export default function ProfileSettingsScreen() {
   const dynamicStyles = useMemo(() => StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor,
+      backgroundColor: isDark ? '#000000' : backgroundColor, // Negro en dark, fondo del tema en light
     },
     header: {
       borderBottomColor: borderColor,
+      backgroundColor: isDark ? '#000000' : backgroundColor, // Negro en dark
     },
     headerTitle: {
-      color: textColor,
+      color: isDark ? '#FFFFFF' : textColor, // Blanco en dark, color del tema en light
     },
     scrollContent: {
       padding: isMobile ? 16 : 24,
       paddingBottom: isMobile ? 32 : 40,
+      backgroundColor: isDark ? '#000000' : backgroundColor, // Negro en dark
     },
     passwordSection: {
       backgroundColor: isDark ? '#000000' : backgroundColor,
       borderColor: isDark ? '#333333' : '#CC7AF280',
     },
     sectionTitle: {
-      color: textColor,
+      color: '#000000', // Siempre negro
     },
     label: {
-      color: textColor,
+      color: '#000000', // Siempre negro
     },
     textArea: {
-      backgroundColor: isDark ? '#000000' : '#CC7AF215',
+      backgroundColor: isDark ? '#000000' : '#FFFFFF',
       borderColor: isDark ? '#333333' : '#CC7AF240',
-      color: textColor,
+      color: isDark ? '#FFFFFF' : textColor, // Blanco en dark
     },
     hint: {
-      color: isDark ? '#B3B3B3' : '#666666',
+      color: '#000000', // Siempre negro
     },
     passwordButtonSection: {
       backgroundColor: isDark ? '#000000' : backgroundColor,
       borderColor: isDark ? '#333333' : '#CC7AF280',
     },
     loadingText: {
-      color: textColor,
+      color: isDark ? '#FFFFFF' : textColor, // Blanco en dark
     },
     profileImagePlaceholderText: {
       color: '#FFFFFF', // Siempre blanco en el placeholder
     },
     profileImageHint: {
-      color: isDark ? '#B3B3B3' : '#666666',
+      color: '#FFFFFF', // Siempre blanco
     },
     bannerHint: {
-      color: isDark ? '#B3B3B3' : '#666666',
+      color: '#000000', // Siempre negro
     },
     planText: {
-      color: textColor,
+      color: isDark ? '#FFFFFF' : textColor, // Blanco en dark (excepto para Plan Free que será negro)
     },
     changePasswordNavButtonText: {
-      color: textColor,
+      color: isDark ? '#FFFFFF' : textColor, // Blanco en dark
     },
   }), [backgroundColor, textColor, borderColor, isDark, isMobile]);
 
@@ -341,61 +343,195 @@ export default function ProfileSettingsScreen() {
 
   const handlePickImage = async (forBanner: boolean = false) => {
     try {
+      console.log('📸 handlePickImage called, forBanner:', forBanner, 'Platform:', Platform.OS);
+      
       // Para web, usar input file
       if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        console.log('🌐 Using web file input');
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
         input.style.display = 'none';
         input.onchange = (e: any) => {
           const file = e.target.files?.[0];
+          console.log('📁 File selected:', file?.name);
           if (file) {
             const reader = new FileReader();
             reader.onload = (event) => {
               if (event.target?.result) {
+                const imageData = event.target.result as string;
+                console.log('✅ Image loaded, length:', imageData.length);
                 if (forBanner) {
-                  setBannerImage(event.target.result as string);
+                  setBannerImage(imageData);
                   setBannerColor('#B81F5A'); // Mantener color por defecto como fallback
+                  console.log('✅ Banner image set');
                 } else {
-                  setProfileImage(event.target.result as string);
+                  setProfileImage(imageData);
+                  console.log('✅ Profile image set');
                 }
               }
             };
+            reader.onerror = (error) => {
+              console.error('❌ FileReader error:', error);
+              Alert.alert('Error', 'No se pudo leer la imagen');
+            };
             reader.readAsDataURL(file);
           }
-          document.body.removeChild(input);
+          if (document.body.contains(input)) {
+            document.body.removeChild(input);
+          }
         };
         document.body.appendChild(input);
         input.click();
         return;
       }
 
-      // Para móvil, necesitarías expo-image-picker
-      Alert.alert(
-        'Funcionalidad no disponible',
-        'Para seleccionar imágenes en móvil, se necesita instalar expo-image-picker. Por ahora, esta funcionalidad está disponible solo en web.'
-      );
+      // Para móvil, usar expo-image-picker
+      console.log('📱 Using expo-image-picker');
+      // Solicitar permisos
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('📋 Permission result:', permissionResult);
+      
+      if (permissionResult.granted === false) {
+        console.warn('❌ Permission denied');
+        Alert.alert(
+          'Permisos requeridos',
+          'Se necesitan permisos para acceder a tu galería de fotos.'
+        );
+        return;
+      }
+
+      // Lanzar el selector de imágenes
+      console.log('🖼️ Launching image library...');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: forBanner ? [16, 9] : [1, 1], // Banner 16:9, perfil 1:1
+        quality: 0.8,
+        base64: true, // Obtener imagen en base64
+      });
+
+      console.log('📸 Image picker result:', result);
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        console.log('✅ Asset selected:', asset.uri);
+        
+        // Si tenemos base64, usarlo, si no, usar la URI
+        let base64Image: string;
+        if (asset.base64) {
+          const extension = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
+          base64Image = `data:image/${extension};base64,${asset.base64}`;
+          console.log('✅ Using base64 image, length:', base64Image.length);
+        } else {
+          base64Image = asset.uri;
+          console.log('✅ Using URI:', base64Image);
+        }
+
+        if (forBanner) {
+          setBannerImage(base64Image);
+          setBannerColor('#B81F5A'); // Mantener color por defecto como fallback
+          console.log('✅ Banner image updated');
+        } else {
+          setProfileImage(base64Image);
+          console.log('✅ Profile image updated');
+        }
+      } else {
+        console.log('ℹ️ Image selection canceled');
+      }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'No se pudo seleccionar la imagen');
+      console.error('❌ Error picking image:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      Alert.alert('Error', `No se pudo seleccionar la imagen: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
-  const handleTakePhoto = async () => {
-    Alert.alert(
-      'Funcionalidad no disponible',
-      'Para tomar fotos, se necesita instalar expo-image-picker. Esta funcionalidad estará disponible próximamente.'
-    );
+  const handleTakePhoto = async (forBanner: boolean = false) => {
+    try {
+      console.log('📷 handleTakePhoto called, forBanner:', forBanner, 'Platform:', Platform.OS);
+      
+      // Solicitar permisos de cámara
+      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+      console.log('📋 Camera permission result:', cameraPermission);
+      
+      if (cameraPermission.granted === false) {
+        console.warn('❌ Camera permission denied');
+        Alert.alert(
+          'Permisos requeridos',
+          'Se necesitan permisos para acceder a tu cámara.'
+        );
+        return;
+      }
+
+      // Lanzar la cámara
+      console.log('📷 Launching camera...');
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: forBanner ? [16, 9] : [1, 1], // Banner 16:9, perfil 1:1
+        quality: 0.8,
+        base64: true, // Obtener imagen en base64
+      });
+
+      console.log('📸 Camera result:', result);
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        console.log('✅ Photo taken:', asset.uri);
+        
+        // Si tenemos base64, usarlo, si no, usar la URI
+        let base64Image: string;
+        if (asset.base64) {
+          const extension = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
+          base64Image = `data:image/${extension};base64,${asset.base64}`;
+          console.log('✅ Using base64 image, length:', base64Image.length);
+        } else {
+          base64Image = asset.uri;
+          console.log('✅ Using URI:', base64Image);
+        }
+
+        if (forBanner) {
+          setBannerImage(base64Image);
+          setBannerColor('#B81F5A'); // Mantener color por defecto como fallback
+          console.log('✅ Banner image updated');
+        } else {
+          setProfileImage(base64Image);
+          console.log('✅ Profile image updated');
+        }
+      } else {
+        console.log('ℹ️ Photo capture canceled');
+      }
+    } catch (error) {
+      console.error('❌ Error taking photo:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      Alert.alert('Error', `No se pudo tomar la foto: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   const showImagePickerOptions = () => {
+    console.log('📸 showImagePickerOptions called, Platform:', Platform.OS);
+    
+    // En web, directamente abrir el selector de archivos (más rápido y confiable)
+    if (Platform.OS === 'web') {
+      console.log('🌐 Web platform: directly calling handlePickImage');
+      handlePickImage(false);
+      return;
+    }
+    
+    // En móvil, usar Alert
     Alert.alert(
       'Seleccionar foto de perfil',
       'Elige una opción',
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Tomar foto', onPress: handleTakePhoto },
-        { text: 'Elegir de galería', onPress: () => handlePickImage(false) },
+        { text: 'Cancelar', style: 'cancel', onPress: () => console.log('❌ Canceled') },
+        { text: 'Tomar foto', onPress: () => {
+          console.log('📷 User selected: Take photo');
+          handleTakePhoto(false);
+        }},
+        { text: 'Elegir de galería', onPress: () => {
+          console.log('🖼️ User selected: Choose from gallery');
+          handlePickImage(false);
+        }},
       ],
       { cancelable: true }
     );
@@ -462,28 +598,54 @@ export default function ProfileSettingsScreen() {
       
       console.log('Sending profile data to backend:', {
         ...profileData,
-        profileImage: profileData.profileImage ? 'Image provided' : 'No image',
+        profileImage: profileData.profileImage ? `Image provided (${profileData.profileImage.length} chars)` : 'No image',
+        bannerImage: profileData.bannerImage ? `Banner provided (${profileData.bannerImage.length} chars)` : 'No banner',
+        bannerColor: profileData.bannerColor,
         username: profileData.username,
         name: profileData.name,
       });
 
       // Remover campos undefined y vacíos para no enviarlos al backend
       // Pero mantener los campos que tienen valores válidos
+      // IMPORTANTE: Para imágenes (base64), no aplicar la validación de cadena vacía ya que pueden ser muy largas
       const cleanedProfileData: UpdateProfileData = {};
       Object.keys(profileData).forEach(key => {
         const value = profileData[key as keyof UpdateProfileData];
-        // Solo incluir si tiene un valor válido (no undefined, no null, y si es string no vacío)
-        if (value !== undefined && value !== null && value !== '') {
-          cleanedProfileData[key as keyof UpdateProfileData] = value;
+        // Para imágenes (profileImage, bannerImage), incluir si no es null ni undefined
+        if (key === 'profileImage' || key === 'bannerImage') {
+          if (value !== undefined && value !== null) {
+            cleanedProfileData[key as keyof UpdateProfileData] = value;
+            console.log(`✅ Including ${key} in cleaned data (${typeof value === 'string' ? value.length : 'non-string'} chars)`);
+          } else {
+            console.log(`❌ Excluding ${key} from cleaned data (${value === undefined ? 'undefined' : 'null'})`);
+          }
+        } else {
+          // Para otros campos, aplicar validación normal
+          if (value !== undefined && value !== null && value !== '') {
+            cleanedProfileData[key as keyof UpdateProfileData] = value;
+          }
         }
+      });
+      
+      console.log('📤 Cleaned profile data:', {
+        ...cleanedProfileData,
+        profileImage: cleanedProfileData.profileImage ? `Image (${cleanedProfileData.profileImage.length} chars)` : 'No image',
+        bannerImage: cleanedProfileData.bannerImage ? `Banner (${cleanedProfileData.bannerImage.length} chars)` : 'No banner',
       });
 
       // Llamar al servicio para actualizar el perfil en la base de datos
       console.log('📤 Enviando datos del perfil al backend:', cleanedProfileData);
+      console.log('📤 Banner image included?', !!cleanedProfileData.bannerImage);
+      console.log('📤 Banner color included?', !!cleanedProfileData.bannerColor);
+      console.log('📤 Profile image included?', !!cleanedProfileData.profileImage);
+      
       const response = await UserService.updateProfile(cleanedProfileData);
       
       console.log('✅ Perfil actualizado exitosamente en el backend:', response);
       console.log('📥 Respuesta del backend:', JSON.stringify(response, null, 2));
+      console.log('📥 Backend response - bannerImage:', response.bannerImage ? `Present (${response.bannerImage.length} chars)` : 'Not present');
+      console.log('📥 Backend response - bannerColor:', response.bannerColor || 'Not present');
+      console.log('📥 Backend response - profileImage:', response.profileImage ? `Present (${response.profileImage.length} chars)` : 'Not present');
 
       // Actualizar el contexto local con los datos del servidor
       // nameParts ya está declarado arriba, así que lo reutilizamos
@@ -620,15 +782,39 @@ export default function ProfileSettingsScreen() {
         setBiography(reloadedProfile.biography || biography);
         setPhone(reloadedProfile.phone || phone);
         setBirthDate(reloadedProfile.birthDate ? formatBirthDateFromISO(reloadedProfile.birthDate) : birthDate);
+        
+        // Actualizar profileImage: priorizar backend, sino mantener el local
         if (reloadedProfile.profileImage) {
+          console.log('✅ Updating profileImage from backend:', reloadedProfile.profileImage.substring(0, 50) + '...');
           setProfileImage(reloadedProfile.profileImage);
+        } else if (profileImage) {
+          console.log('⚠️ Backend did not return profileImage, keeping local value');
+          // Mantener el valor local si el backend no lo devolvió
         }
-        if (reloadedProfile.bannerColor) {
+        
+        // Actualizar bannerColor: priorizar backend, sino mantener el local
+        if (reloadedProfile.bannerColor && reloadedProfile.bannerColor.trim() !== '') {
+          console.log('✅ Updating bannerColor from backend:', reloadedProfile.bannerColor);
           setBannerColor(reloadedProfile.bannerColor);
+        } else if (bannerColor) {
+          console.log('⚠️ Backend did not return bannerColor, keeping local value:', bannerColor);
+          // Mantener el valor local si el backend no lo devolvió
         }
-        if (reloadedProfile.bannerImage) {
+        
+        // Actualizar bannerImage: priorizar backend, sino mantener el local (IMPORTANTE para imágenes base64)
+        if (reloadedProfile.bannerImage && reloadedProfile.bannerImage.trim() !== '') {
+          console.log('✅ Updating bannerImage from backend:', reloadedProfile.bannerImage.substring(0, 50) + '...');
           setBannerImage(reloadedProfile.bannerImage);
+        } else if (bannerImage) {
+          console.log('⚠️ Backend did not return bannerImage, keeping local value (base64 image)');
+          console.log('⚠️ Local bannerImage length:', bannerImage.length);
+          // Mantener el valor local si el backend no lo devolvió
+          // El backend puede guardar la imagen pero no devolverla en la respuesta (por tamaño)
+          // En este caso, NO actualizamos el estado para mantener la imagen local
+        } else {
+          console.log('ℹ️ No bannerImage in backend response and no local value');
         }
+        
         if (reloadedProfile.plan) {
           setPlan(reloadedProfile.plan as 'Free' | 'VIP');
         }
@@ -834,7 +1020,7 @@ export default function ProfileSettingsScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={isMobile ? 24 : 28} color={textColor} />
+            <Ionicons name="arrow-back" size={isMobile ? 24 : 28} color={isDark ? '#FFFFFF' : textColor} />
           </TouchableOpacity>
           <ThemedText style={[styles.headerTitle, isMobile && styles.headerTitleMobile, dynamicStyles.headerTitle]}>
             Configurar Perfil
@@ -849,7 +1035,7 @@ export default function ProfileSettingsScreen() {
         </View>
       ) : (
       <ScrollView
-        style={styles.scrollView}
+        style={[styles.scrollView, { backgroundColor: isDark ? '#000000' : backgroundColor }]}
         contentContainerStyle={[styles.scrollContent, isMobile && styles.scrollContentMobile, dynamicStyles.scrollContent]}
         showsVerticalScrollIndicator={false}
       >
@@ -869,12 +1055,22 @@ export default function ProfileSettingsScreen() {
             <TouchableOpacity 
               style={styles.editBannerButton}
               onPress={() => {
+                console.log('🎨 Banner button pressed, Platform:', Platform.OS);
+                
+                // En web, directamente abrir el selector de imágenes
+                if (Platform.OS === 'web') {
+                  console.log('🌐 Web platform: directly calling handlePickImage for banner');
+                  handlePickImage(true);
+                  return;
+                }
+                
                 Alert.alert(
                   'Cambiar Banner',
                   'Elige una opción',
                   [
-                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Cancelar', style: 'cancel', onPress: () => console.log('❌ Banner selection canceled') },
                     { text: 'Elegir color', onPress: () => {
+                      console.log('🎨 User selected: Choose color');
                       const colors = [
                         { name: 'Rosa', color: '#B81F5A' },
                         { name: 'Rosa claro', color: '#F22976' },
@@ -901,7 +1097,14 @@ export default function ProfileSettingsScreen() {
                         ]
                       );
                     }},
-                    { text: 'Elegir imagen', onPress: () => handlePickImage(true) },
+                    { text: 'Elegir imagen', onPress: () => {
+                      console.log('🖼️ User selected: Choose image for banner');
+                      handlePickImage(true);
+                    }},
+                    { text: 'Tomar foto', onPress: () => {
+                      console.log('📷 User selected: Take photo for banner');
+                      handleTakePhoto(true);
+                    }},
                   ],
                   { cancelable: true }
                 );
@@ -915,7 +1118,10 @@ export default function ProfileSettingsScreen() {
           <View style={styles.profileImageWrapper}>
             <TouchableOpacity 
               style={styles.profileImageContainer}
-              onPress={showImagePickerOptions}
+              onPress={() => {
+                console.log('📸 Profile image button pressed');
+                showImagePickerOptions();
+              }}
               activeOpacity={0.8}
             >
               {profileImage ? (
@@ -951,7 +1157,10 @@ export default function ProfileSettingsScreen() {
               size={16} 
               color={plan === 'VIP' ? '#FFD700' : '#FFFFFF'} 
             />
-            <ThemedText style={[styles.planText, plan === 'VIP' && styles.planTextVIP, dynamicStyles.planText]}>
+            <ThemedText style={[
+              styles.planText,
+              plan === 'VIP' ? styles.planTextVIP : { color: '#FFFFFF' }
+            ]}>
               Plan {plan}
             </ThemedText>
           </View>
@@ -1030,11 +1239,11 @@ export default function ProfileSettingsScreen() {
             onPress={() => router.push('/change-password')}
             activeOpacity={0.8}
           >
-            <Ionicons name="lock-closed-outline" size={isMobile ? 18 : 20} color={textColor} />
+            <Ionicons name="lock-closed-outline" size={isMobile ? 18 : 20} color={isDark ? '#FFFFFF' : textColor} />
             <ThemedText style={[styles.changePasswordNavButtonText, isMobile && styles.changePasswordNavButtonTextMobile, dynamicStyles.changePasswordNavButtonText]}>
               Cambiar contraseña
             </ThemedText>
-            <Ionicons name="chevron-forward" size={isMobile ? 18 : 20} color="#B3B3B3" />
+            <Ionicons name="chevron-forward" size={isMobile ? 18 : 20} color={isDark ? '#FFFFFF' : '#B3B3B3'} />
           </TouchableOpacity>
         </View>
 
@@ -1045,11 +1254,11 @@ export default function ProfileSettingsScreen() {
             onPress={() => router.push('/account-preferences')}
             activeOpacity={0.8}
           >
-            <Ionicons name="settings-outline" size={isMobile ? 18 : 20} color={textColor} />
+            <Ionicons name="settings-outline" size={isMobile ? 18 : 20} color={isDark ? '#FFFFFF' : textColor} />
             <ThemedText style={[styles.changePasswordNavButtonText, isMobile && styles.changePasswordNavButtonTextMobile, dynamicStyles.changePasswordNavButtonText]}>
               Preferencias de cuenta
             </ThemedText>
-            <Ionicons name="chevron-forward" size={isMobile ? 18 : 20} color="#B3B3B3" />
+            <Ionicons name="chevron-forward" size={isMobile ? 18 : 20} color={isDark ? '#FFFFFF' : '#B3B3B3'} />
           </TouchableOpacity>
         </View>
 

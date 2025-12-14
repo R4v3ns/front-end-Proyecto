@@ -542,11 +542,30 @@ export class ApiClient {
         ...(timeoutSignal && { signal: timeoutSignal }),
       });
 
-      const data = await response.json();
+      // Si es 204 No Content, no intentar parsear JSON
+      if (response.status === 204) {
+        return { data: undefined, status: 204 };
+      }
+
+      // Intentar parsear como JSON solo si hay contenido
+      let data;
+      const contentType = response.headers.get('content-type');
+      const text = await response.text();
+      
+      if (contentType && contentType.includes('application/json') && text) {
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          console.error('ApiClient.delete - JSON parse error:', parseError);
+          data = { message: text || 'Error al procesar la respuesta' };
+        }
+      } else {
+        data = text ? { message: text } : {};
+      }
 
       if (!response.ok) {
         throw new ApiError(
-          data.message || 'Error en la petición',
+          data.error || data.message || 'Error en la petición',
           response.status,
           data
         );

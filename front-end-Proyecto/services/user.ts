@@ -48,13 +48,24 @@ export class UserService {
       };
 
       console.log('UserService.updateProfile - Sending request to:', ENDPOINTS.USERS.UPDATE_PROFILE);
-      console.log('UserService.updateProfile - Data:', { 
+      console.log('UserService.updateProfile - Data summary:', { 
         ...dataToSend, 
-        profileImage: dataToSend.profileImage ? 'Image provided' : 'No image',
+        profileImage: dataToSend.profileImage ? `Image provided (${dataToSend.profileImage.length} chars)` : 'No image',
+        bannerImage: dataToSend.bannerImage ? `Banner provided (${dataToSend.bannerImage.length} chars)` : 'No banner',
+        bannerColor: dataToSend.bannerColor || 'No color',
         username: dataToSend.username,
         name: dataToSend.name,
       });
-      console.log('UserService.updateProfile - Full data JSON:', JSON.stringify(dataToSend, null, 2));
+      
+      // Log completo pero truncar imágenes para no saturar la consola
+      const dataToLog = { ...dataToSend };
+      if (dataToLog.profileImage && typeof dataToLog.profileImage === 'string') {
+        dataToLog.profileImage = `[TRUNCATED: ${dataToLog.profileImage.length} chars] ${dataToLog.profileImage.substring(0, 50)}...`;
+      }
+      if (dataToLog.bannerImage && typeof dataToLog.bannerImage === 'string') {
+        dataToLog.bannerImage = `[TRUNCATED: ${dataToLog.bannerImage.length} chars] ${dataToLog.bannerImage.substring(0, 50)}...`;
+      }
+      console.log('UserService.updateProfile - Full data (images truncated):', JSON.stringify(dataToLog, null, 2));
 
       const response = await ApiClient.put<UserProfileResponse>(
         ENDPOINTS.USERS.UPDATE_PROFILE,
