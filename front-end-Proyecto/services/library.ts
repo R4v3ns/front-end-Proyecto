@@ -226,10 +226,21 @@ export class LibraryService {
       
       return response.data?.ok || false;
     } catch (error) {
-      console.error(`LibraryService.addSongToPlaylist(${playlistId}, ${songId}) error:`, error);
+      // Manejar errores de forma más silenciosa para errores del backend (500)
+      // Estos son errores de configuración del backend, no del frontend
       if (error instanceof ApiError) {
+        // Si es un error 500 (error del servidor), solo loguear un mensaje corto
+        // No mostrar detalles técnicos como SQLITE_ERROR al usuario
+        if (error.status === 500) {
+          console.warn(`LibraryService.addSongToPlaylist - Error del servidor (500). La canción no se pudo agregar.`);
+          // Lanzar un error más amigable para el usuario
+          throw new ApiError('Error del servidor al agregar la canción. Por favor, intenta más tarde.', 500);
+        }
+        // Para otros errores de API, lanzar el error original
         throw error;
       }
+      // Para errores desconocidos, solo loguear sin detalles técnicos
+      console.warn(`LibraryService.addSongToPlaylist - Error desconocido al agregar canción`);
       return false;
     }
   }

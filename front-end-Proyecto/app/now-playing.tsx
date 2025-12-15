@@ -238,8 +238,14 @@ export default function NowPlayingScreen() {
       });
       setShowPlaylistModal(false);
       Alert.alert('Éxito', 'Canción agregada a la playlist');
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo agregar la canción a la playlist');
+    } catch (error: any) {
+      // Mostrar un mensaje más específico si es un error de API
+      const errorMessage = error?.message || 'No se pudo agregar la canción a la playlist';
+      // No mostrar detalles técnicos al usuario
+      const userMessage = errorMessage.includes('servidor') || errorMessage.includes('SQLITE') 
+        ? 'No se pudo agregar la canción. Por favor, intenta más tarde.' 
+        : errorMessage;
+      Alert.alert('Error', userMessage);
     }
   };
 

@@ -311,7 +311,15 @@ export class ApiClient {
       }
 
       if (!response.ok) {
-        console.error('ApiClient.post - Error response:', data);
+        // Para errores 500 (errores del servidor), solo loguear un resumen
+        // Los detalles técnicos como SQLITE_ERROR son del backend y no deben mostrarse al usuario
+        if (response.status === 500) {
+          console.warn(`ApiClient.post - Error del servidor (500) en ${endpoint}`);
+          // No loguear el data completo para evitar mostrar detalles técnicos innecesarios
+        } else {
+          // Para otros errores (400, 401, 404, etc.), loguear normalmente
+          console.error('ApiClient.post - Error response:', data);
+        }
         
         // Detectar errores de autenticación (401) o token expirado
         if (response.status === 401 || 
@@ -331,9 +339,15 @@ export class ApiClient {
       console.log('ApiClient.post - Success response:', data);
       return { data, status: response.status };
     } catch (error) {
-      console.error('ApiClient.post - Exception:', error);
-      console.error('ApiClient.post - Error type:', error?.constructor?.name);
-      console.error('ApiClient.post - Error message:', error instanceof Error ? error.message : String(error));
+      // Si es un ApiError con status 500, solo loguear un resumen
+      if (error instanceof ApiError && error.status === 500) {
+        console.warn(`ApiClient.post - Error del servidor (500) en ${endpoint}`);
+      } else {
+        // Para otros errores, loguear normalmente
+        console.error('ApiClient.post - Exception:', error);
+        console.error('ApiClient.post - Error type:', error?.constructor?.name);
+        console.error('ApiClient.post - Error message:', error instanceof Error ? error.message : String(error));
+      }
       
       // Si ya es un ApiError, simplemente re-lanzarlo
       if (error instanceof ApiError) {

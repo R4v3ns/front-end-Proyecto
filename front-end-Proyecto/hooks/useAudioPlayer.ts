@@ -97,12 +97,116 @@ export const useAudioPlayer = (playlist: Song[]) => {
 
       // Cuando termina la canción, reproducir la siguiente automáticamente
       if (status.didJustFinish && !status.isLooping) {
+        console.log('🎵 [onPlaybackStatusUpdate] Canción terminó, avanzando a siguiente...');
         // Ejecutar de forma asíncrona sin bloquear
         setTimeout(async () => {
           const state = playerStateRef.current;
+          // Asegurar que estamos usando la playlist más actualizada
           const currentPlaylist = playlistRef.current;
           
-          if (currentPlaylist.length === 0) return;
+          console.log('📋 [onPlaybackStatusUpdate] Playlist actual:', currentPlaylist.length, 'canciones. IDs:', currentPlaylist.map(s => s.id));
+          
+          if (currentPlaylist.length === 0) {
+            console.log('⚠️ [onPlaybackStatusUpdate] No hay playlist');
+            return;
+          }
+          
+          // Si no hay índice válido, intentar encontrar la canción actual en la playlist
+          if (state.currentIndex < 0 && state.currentSong) {
+            const foundIndex = currentPlaylist.findIndex(song => song.id === state.currentSong?.id);
+            if (foundIndex !== -1) {
+              console.log(`🔄 [onPlaybackStatusUpdate] Corrigiendo índice inválido: -1 -> ${foundIndex}`);
+              setPlayerState(prev => ({ ...prev, currentIndex: foundIndex }));
+            }
+          }
+
+          // Si repeatMode es 'one', repetir la misma canción
+          if (state.repeatMode === 'one') {
+            console.log('🔄 [onPlaybackStatusUpdate] Repetir una canción activado, repitiendo:', state.currentSong?.title);
+            savedPositionRef.current = 0;
+            
+            // Buscar la canción actual en la playlist
+            const currentSongIndex = state.currentSong 
+              ? currentPlaylist.findIndex(song => song.id === state.currentSong?.id)
+              : state.currentIndex;
+            
+            const currentSong = currentSongIndex !== -1 
+              ? currentPlaylist[currentSongIndex]
+              : currentPlaylist[state.currentIndex] || currentPlaylist[0];
+            
+            const songIndex = currentSongIndex !== -1 ? currentSongIndex : (state.currentIndex >= 0 && state.currentIndex < currentPlaylist.length ? state.currentIndex : 0);
+            
+            if (currentSong && !isLoadingRef.current) {
+              loadAndPlaySong(currentSong, songIndex);
+            }
+            return;
+          }
+
+          // Primero, sincronizar el currentIndex con la canción actual en la playlist
+          // Esto es importante porque la playlist puede haber cambiado (por ejemplo, si la cola se actualizó)
+          let currentActualIndex = state.currentIndex;
+          let songFoundInPlaylist = false;
+          
+          if (state.currentSong && currentPlaylist.length > 0) {
+            const foundIndex = currentPlaylist.findIndex(song => song.id === state.currentSong?.id);
+            if (foundIndex !== -1) {
+              // La canción está en la playlist, usar ese índice
+              songFoundInPlaylist = true;
+              currentActualIndex = foundIndex;
+              // Si el índice guardado es diferente, actualizar el estado
+              if (currentActualIndex !== state.currentIndex) {
+                console.log(`🔄 [onPlaybackStatusUpdate] Sincronizando índice: ${state.currentIndex} -> ${currentActualIndex}`);
+                setPlayerState(prev => ({ ...prev, currentIndex: currentActualIndex }));
+              }
+            } else {
+              // La canción ya no está en la playlist (la cola cambió)
+              // Ajustar el índice al último válido para calcular correctamente la siguiente
+              console.warn(`⚠️ [onPlaybackStatusUpdate] Canción actual ya no está en la playlist. Ajustando índice...`);
+              if (currentActualIndex < 0 || currentActualIndex >= currentPlaylist.length) {
+                // Índice fuera de rango, usar el último válido
+                currentActualIndex = Math.max(0, currentPlaylist.length - 1);
+                console.log(`🔄 [onPlaybackStatusUpdate] Índice ajustado a: ${currentActualIndex}`);
+              }
+              // Actualizar el estado con el índice ajustado
+              setPlayerState(prev => ({ ...prev, currentIndex: currentActualIndex }));
+            }
+          } else if (currentActualIndex < 0 || currentActualIndex >= currentPlaylist.length) {
+            // Si no hay canción actual o el índice es inválido, usar el último índice válido
+            currentActualIndex = currentPlaylist.length > 0 ? Math.max(0, currentPlaylist.length - 1) : -1;
+            if (currentPlaylist.length > 0) {
+              console.log(`🔄 [onPlaybackStatusUpdate] Ajustando índice inválido a: ${currentActualIndex}`);
+              setPlayerState(prev => ({ ...prev, currentIndex: currentActualIndex }));
+            }
+          }
+
+          // Verificar si estamos al final ANTES de calcular nextIndex (para repeatMode 'off')
+          // Solo detener si realmente estamos en la última canción Y la canción terminó
+          if (state.repeatMode === 'off' && !state.isShuffle && currentActualIndex >= 0 && currentActualIndex < currentPlaylist.length) {
+            const isLastPosition = currentActualIndex === currentPlaylist.length - 1;
+            // Solo detener si estamos en la última posición Y hay más de una canción
+            // (si solo hay una canción, no tiene sentido detener porque ya terminó)
+            if (isLastPosition && currentPlaylist.length > 1) {
+              // Estamos en la última canción y terminó, con repeat 'off' detener
+              console.log('⏹️ [onPlaybackStatusUpdate] Fin de playlist (repeat off), deteniendo. currentActualIndex:', currentActualIndex, 'length:', currentPlaylist.length);
+              if (soundRef.current) {
+                await soundRef.current.stopAsync();
+                await soundRef.current.unloadAsync();
+                soundRef.current = null;
+              }
+              setPlayerState(prev => ({ ...prev, isPlaying: false, currentTime: 0, currentIndex: currentActualIndex }));
+              return;
+            } else if (currentPlaylist.length === 1) {
+              // Solo hay una canción, si terminó con repeat 'off', detener
+              console.log('⏹️ [onPlaybackStatusUpdate] Única canción terminó (repeat off), deteniendo');
+              if (soundRef.current) {
+                await soundRef.current.stopAsync();
+                await soundRef.current.unloadAsync();
+                soundRef.current = null;
+              }
+              setPlayerState(prev => ({ ...prev, isPlaying: false, currentTime: 0, currentIndex: currentActualIndex }));
+              return;
+            }
+          }
 
           let nextIndex: number;
 
@@ -119,47 +223,58 @@ export const useAudioPlayer = (playlist: Song[]) => {
               nextIndex = currentPlaylist.findIndex(song => song.id === randomSong.id);
               
               // Si la canción actual es la misma que la seleccionada y hay más de una canción, seleccionar otra
-              if (nextIndex === state.currentIndex && playableSongs.length > 1) {
+              if (nextIndex === currentActualIndex && playableSongs.length > 1) {
                 const otherSongs = playableSongs.filter(song => song.id !== randomSong.id);
                 const newRandomSong = otherSongs[Math.floor(Math.random() * otherSongs.length)];
                 nextIndex = currentPlaylist.findIndex(song => song.id === newRandomSong.id);
               }
             }
           } else {
-            nextIndex = (state.currentIndex + 1) % currentPlaylist.length;
-          }
-
-          // Si repeatMode es 'off' y llegamos al final, detener
-          // En modo shuffle, considerar solo las canciones reproducibles
-          const playableSongsForStop = state.isShuffle 
-            ? currentPlaylist.filter(song => !song.isExample)
-            : currentPlaylist;
-          
-          // Verificar si se llegó al final de las canciones reproducibles
-          const isAtEnd = playableSongsForStop.length > 0 && 
-            state.currentIndex >= 0 &&
-            currentPlaylist[state.currentIndex]?.id === playableSongsForStop[playableSongsForStop.length - 1]?.id &&
-            nextIndex >= 0 &&
-            currentPlaylist[nextIndex]?.id === playableSongsForStop[playableSongsForStop.length - 1]?.id;
-          
-          if (
-            state.repeatMode === 'off' &&
-            isAtEnd
-          ) {
-            if (soundRef.current) {
-              await soundRef.current.stopAsync();
-              await soundRef.current.unloadAsync(); // Descargar completamente para evitar pitidos
-              soundRef.current = null;
+            // Modo normal: siguiente canción
+            // Si el índice actual está fuera de rango, empezar desde 0
+            if (currentActualIndex < 0 || currentActualIndex >= currentPlaylist.length) {
+              console.warn(`⚠️ [onPlaybackStatusUpdate] Índice actual fuera de rango (${currentActualIndex}), usando índice 0`);
+              nextIndex = 0;
+            } else {
+              // Calcular siguiente índice (con wrap-around si repeatMode es 'all')
+              nextIndex = (currentActualIndex + 1) % currentPlaylist.length;
             }
-            setPlayerState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
+          }
+          
+          console.log(`🔍 [onPlaybackStatusUpdate] currentIndex: ${state.currentIndex}, currentActualIndex: ${currentActualIndex}, nextIndex: ${nextIndex}, playlist length: ${currentPlaylist.length}, repeatMode: ${state.repeatMode}, isShuffle: ${state.isShuffle}`);
+
+          // Validar que nextIndex sea válido antes de continuar
+          if (nextIndex < 0 || nextIndex >= currentPlaylist.length) {
+            console.error('❌ [onPlaybackStatusUpdate] Índice siguiente inválido:', nextIndex, 'playlist length:', currentPlaylist.length);
             return;
           }
+          // Si repeatMode es 'all' o shuffle, continuar (nextIndex ya se calculó correctamente)
+          
+          console.log(`✅ [onPlaybackStatusUpdate] Avanzando a siguiente canción - Índice: ${nextIndex}, Canción: ${currentPlaylist[nextIndex]?.title || 'N/A'}`);
 
           // Cargar siguiente canción (limpiar posición guardada al cambiar de canción)
           savedPositionRef.current = 0;
           const nextSong = currentPlaylist[nextIndex];
-          if (nextSong && !isLoadingRef.current) {
-            loadAndPlaySong(nextSong, nextIndex);
+          if (!nextSong) {
+            console.error('❌ [onPlaybackStatusUpdate] No se encontró la siguiente canción en el índice', nextIndex);
+            return;
+          }
+          
+          console.log(`⏭️ [onPlaybackStatusUpdate] Reproduciendo siguiente canción (índice ${nextIndex}):`, nextSong.title);
+          
+          // Limpiar cualquier carga previa si está bloqueada
+          if (isLoadingRef.current) {
+            console.log('⚠️ [onPlaybackStatusUpdate] isLoadingRef está activo, limpiando...');
+            isLoadingRef.current = false;
+          }
+          
+          // Cargar la siguiente canción directamente
+          try {
+            await loadAndPlaySong(nextSong, nextIndex);
+            console.log(`✅ [onPlaybackStatusUpdate] Siguiente canción cargada exitosamente:`, nextSong.title);
+          } catch (error) {
+            console.error('❌ [onPlaybackStatusUpdate] Error al cargar siguiente canción:', error);
+            isLoadingRef.current = false;
           }
         }, 100); // Pequeño delay para evitar condiciones de carrera
       }
@@ -192,10 +307,10 @@ export const useAudioPlayer = (playlist: Song[]) => {
       return;
     }
     
-    // Si hay una carga en progreso para otra canción, esperar a que termine o forzar detención
+    // Si hay una carga en progreso para otra canción, limpiar y continuar
     if (isLoadingRef.current && playerStateRef.current.currentSong?.id !== song.id) {
-      console.log('⚠️ loadAndPlaySong - Hay otra canción cargándose, deteniendo y esperando...');
-      // Forzar detención del audio anterior
+      console.log('⚠️ loadAndPlaySong - Hay otra canción cargándose, limpiando y continuando...');
+      // Forzar detención del audio anterior y limpiar el flag
       if (soundRef.current) {
         try {
           await soundRef.current.stopAsync();
@@ -205,6 +320,8 @@ export const useAudioPlayer = (playlist: Song[]) => {
         }
         soundRef.current = null;
       }
+      // Limpiar el flag de carga para permitir la nueva carga
+      isLoadingRef.current = false;
       // Esperar un poco más para asegurar que todo se limpie
       await new Promise(resolve => setTimeout(resolve, 200));
     }
@@ -518,6 +635,31 @@ export const useAudioPlayer = (playlist: Song[]) => {
       return;
     }
 
+    // Primero, sincronizar el currentIndex con la canción actual en la playlist
+    // Esto es importante porque la playlist puede haber cambiado (por ejemplo, si la cola se actualizó)
+    let currentActualIndex = state.currentIndex;
+    if (state.currentSong) {
+      const foundIndex = currentPlaylist.findIndex(song => song.id === state.currentSong?.id);
+      if (foundIndex !== -1) {
+        currentActualIndex = foundIndex;
+      } else if (currentActualIndex < 0 || currentActualIndex >= currentPlaylist.length) {
+        // Si el índice no es válido, buscar la canción o usar 0
+        currentActualIndex = foundIndex !== -1 ? foundIndex : 0;
+      }
+    }
+
+    // Si repeatMode es 'one', repetir la misma canción (aunque esto es raro para handleNext manual)
+    // Pero por consistencia, lo manejamos
+    if (state.repeatMode === 'one') {
+      console.log('🔄 handleNext - Repetir una canción activado, repitiendo:', state.currentSong?.title);
+      savedPositionRef.current = 0;
+      const currentSong = currentPlaylist[currentActualIndex];
+      if (currentSong) {
+        await loadAndPlaySong(currentSong, currentActualIndex);
+      }
+      return;
+    }
+
     let nextIndex: number;
 
     if (state.isShuffle) {
@@ -533,46 +675,34 @@ export const useAudioPlayer = (playlist: Song[]) => {
         nextIndex = currentPlaylist.findIndex(song => song.id === randomSong.id);
         
         // Si la canción actual es la misma que la seleccionada y hay más de una canción, seleccionar otra
-        if (nextIndex === state.currentIndex && playableSongs.length > 1) {
+        if (nextIndex === currentActualIndex && playableSongs.length > 1) {
           const otherSongs = playableSongs.filter(song => song.id !== randomSong.id);
           const newRandomSong = otherSongs[Math.floor(Math.random() * otherSongs.length)];
           nextIndex = currentPlaylist.findIndex(song => song.id === newRandomSong.id);
         }
       }
     } else {
-      nextIndex = (state.currentIndex + 1) % currentPlaylist.length;
+      // Modo normal: siguiente canción
+      nextIndex = (currentActualIndex + 1) % currentPlaylist.length;
     }
+    
+    console.log(`🔍 handleNext - currentIndex: ${state.currentIndex}, currentActualIndex: ${currentActualIndex}, nextIndex: ${nextIndex}, playlist length: ${currentPlaylist.length}`);
 
-    // Si repeatMode es 'off' y llegamos al final, detener
-    // En modo shuffle, considerar solo las canciones reproducibles
-    const playableSongsForStop = state.isShuffle 
-      ? currentPlaylist.filter(song => !song.isExample)
-      : currentPlaylist;
-    
-    // Verificar si se llegó al final de las canciones reproducibles
-    const isAtEnd = playableSongsForStop.length > 0 && 
-      state.currentIndex >= 0 &&
-      currentPlaylist[state.currentIndex]?.id === playableSongsForStop[playableSongsForStop.length - 1]?.id &&
-      nextIndex >= 0 &&
-      currentPlaylist[nextIndex]?.id === playableSongsForStop[playableSongsForStop.length - 1]?.id;
-    
-    if (
-      state.repeatMode === 'off' &&
-      isAtEnd
-    ) {
-      if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync(); // Descargar completamente
-        soundRef.current = null;
-      }
-      setPlayerState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
+    // Validar que nextIndex sea válido antes de continuar
+    if (nextIndex < 0 || nextIndex >= currentPlaylist.length) {
+      console.error('❌ handleNext - Índice siguiente inválido:', nextIndex, 'playlist length:', currentPlaylist.length);
       return;
     }
 
     // Limpiar posición guardada al cambiar de canción
     savedPositionRef.current = 0;
-    console.log(`⏭️ handleNext - Cambiando a siguiente canción (índice ${nextIndex})`);
-    await loadAndPlaySong(currentPlaylist[nextIndex], nextIndex);
+    const nextSong = currentPlaylist[nextIndex];
+    if (!nextSong) {
+      console.error('❌ handleNext - No se encontró la siguiente canción en el índice', nextIndex);
+      return;
+    }
+    console.log(`⏭️ handleNext - Cambiando a siguiente canción (índice ${nextIndex}):`, nextSong.title);
+    await loadAndPlaySong(nextSong, nextIndex);
   };
 
   // Canción anterior
@@ -660,7 +790,21 @@ export const useAudioPlayer = (playlist: Song[]) => {
       if (wasPlaying) {
         try {
           // Pequeño delay para asegurar que la posición se estableció correctamente
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Verificar que el audio todavía existe y está cargado
+          if (!soundRef.current) {
+            console.warn('⚠️ seekTo - El audio fue descargado durante el seek');
+            return;
+          }
+          
+          const currentStatus = await soundRef.current.getStatusAsync();
+          if (!currentStatus.isLoaded) {
+            console.warn('⚠️ seekTo - El audio ya no está cargado');
+            return;
+          }
+          
+          // Intentar reproducir, pero ignorar errores de AbortError (interrupciones normales)
           await soundRef.current.playAsync();
           setPlayerState(prev => ({
             ...prev,
@@ -668,14 +812,37 @@ export const useAudioPlayer = (playlist: Song[]) => {
             currentTime: timeInSeconds,
           }));
           console.log(`✅ seekTo - Continuando reproducción desde ${timeInSeconds.toFixed(2)}s`);
-        } catch (playError) {
-          console.warn('⚠️ seekTo - Error al continuar reproducción después del seek:', playError);
-          // Si falla, al menos mantener el estado actualizado
-          setPlayerState(prev => ({
-            ...prev,
-            isPlaying: false,
-            currentTime: timeInSeconds,
-          }));
+        } catch (playError: any) {
+          // Ignorar errores de AbortError (interrupciones normales durante seek)
+          if (playError?.name === 'AbortError' || playError?.message?.includes('interrupted')) {
+            console.log('ℹ️ seekTo - Reproducción interrumpida (normal durante seek)');
+            // Verificar el estado real del audio
+            if (soundRef.current) {
+              try {
+                const status = await soundRef.current.getStatusAsync();
+                setPlayerState(prev => ({
+                  ...prev,
+                  isPlaying: status.isLoaded && status.isPlaying || false,
+                  currentTime: timeInSeconds,
+                }));
+              } catch {
+                // Si no podemos obtener el estado, asumir pausado
+                setPlayerState(prev => ({
+                  ...prev,
+                  isPlaying: false,
+                  currentTime: timeInSeconds,
+                }));
+              }
+            }
+          } else {
+            console.warn('⚠️ seekTo - Error al continuar reproducción después del seek:', playError);
+            // Si hay error, al menos mantener el estado actualizado
+            setPlayerState(prev => ({
+              ...prev,
+              isPlaying: false,
+              currentTime: timeInSeconds,
+            }));
+          }
         }
       } else {
         console.log(`✅ seekTo - Posición actualizada a ${timeInSeconds.toFixed(2)}s (pausado)`);
