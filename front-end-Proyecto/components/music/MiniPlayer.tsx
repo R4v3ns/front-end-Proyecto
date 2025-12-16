@@ -28,10 +28,10 @@ export default function MiniPlayer() {
     seekTo,
   } = usePlayer();
 
-  // No mostrar si no hay canción actual o si estamos en pantallas específicas
+  // Solo ocultar si no hay canción actual o si estamos en la pantalla de reproducción completa
   const isNowPlaying = pathname?.includes('/now-playing');
-  const isAccountPreferences = pathname?.includes('/account-preferences');
-  if (!playerState.currentSong || isNowPlaying || isAccountPreferences) {
+  
+  if (!playerState.currentSong || isNowPlaying) {
     return null;
   }
 

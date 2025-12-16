@@ -228,7 +228,7 @@ export default function NowPlayingScreen() {
     return likedSongs.some(song => song.id === currentSong.id);
   }, [currentSong, likedSongs]);
 
-  const handleAddToPlaylist = async (playlistId: number) => {
+  const handleAddToPlaylist = async (playlistId: number | string) => {
     if (!currentSong) return;
 
     try {

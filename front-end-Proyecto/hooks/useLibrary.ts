@@ -27,9 +27,9 @@ export const usePlaylists = () => {
 };
 
 /**
- * Hook para obtener una playlist por ID
+ * Hook para obtener una playlist por ID (puede ser número o UUID)
  */
-export const usePlaylist = (id: number | null) => {
+export const usePlaylist = (id: number | string | null) => {
   const {
     data: playlist = null,
     isLoading,
@@ -89,7 +89,7 @@ export const useCreatePlaylist = () => {
 };
 
 /**
- * Hook para actualizar una playlist
+ * Hook para actualizar una playlist (id puede ser número o UUID)
  */
 export const useUpdatePlaylist = () => {
   const queryClient = useQueryClient();
@@ -99,7 +99,7 @@ export const useUpdatePlaylist = () => {
       id,
       data,
     }: {
-      id: number;
+      id: number | string;
       data: { name?: string; description?: string; isPublic?: boolean };
     }) => LibraryService.updatePlaylist(id, data),
     onSuccess: (_, variables) => {
@@ -110,13 +110,13 @@ export const useUpdatePlaylist = () => {
 };
 
 /**
- * Hook para eliminar una playlist
+ * Hook para eliminar una playlist (id puede ser número o UUID)
  */
 export const useDeletePlaylist = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) => LibraryService.deletePlaylist(id),
+    mutationFn: (id: number | string) => LibraryService.deletePlaylist(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
     },
@@ -133,24 +133,66 @@ export const useAddSongToPlaylist = () => {
     mutationFn: ({ playlistId, songId }: { playlistId: number | string; songId: number }) =>
       LibraryService.addSongToPlaylist(playlistId, songId),
     onSuccess: (_, variables) => {
+      // Invalidar y refrescar todas las queries relacionadas con playlists
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
-      queryClient.invalidateQueries({ queryKey: ['playlist', variables.playlistId] });
+      
+      // Refrescar la lista de playlists inmediatamente
+      queryClient.refetchQueries({ queryKey: ['playlists'] });
+      
+      // Invalidar y refrescar la playlist específica
+      // Normalizar el ID para asegurar que coincida con la query
+      const normalizedId = typeof variables.playlistId === 'string' 
+        ? parseInt(variables.playlistId, 10) 
+        : variables.playlistId;
+      
+      // Invalidar y refrescar con ambos formatos de ID para cubrir todos los casos
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          if (query.queryKey[0] === 'playlist' && query.queryKey.length === 2) {
+            const queryId = query.queryKey[1];
+            return String(queryId) === String(variables.playlistId) || 
+                   Number(queryId) === Number(variables.playlistId) ||
+                   String(queryId) === String(normalizedId) ||
+                   Number(queryId) === normalizedId;
+          }
+          return false;
+        }
+      });
+      
+      // Forzar refetch de la playlist específica
+      queryClient.refetchQueries({ 
+        predicate: (query) => {
+          if (query.queryKey[0] === 'playlist' && query.queryKey.length === 2) {
+            const queryId = query.queryKey[1];
+            return String(queryId) === String(variables.playlistId) || 
+                   Number(queryId) === Number(variables.playlistId) ||
+                   String(queryId) === String(normalizedId) ||
+                   Number(queryId) === normalizedId;
+          }
+          return false;
+        }
+      });
     },
   });
 };
 
 /**
- * Hook para quitar canción de playlist
+ * Hook para quitar canción de playlist (playlistId puede ser número o UUID)
  */
 export const useRemoveSongFromPlaylist = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ playlistId, songId }: { playlistId: number; songId: number }) =>
+    mutationFn: ({ playlistId, songId }: { playlistId: number | string; songId: number }) =>
       LibraryService.removeSongFromPlaylist(playlistId, songId),
     onSuccess: (_, variables) => {
+      // Invalidar y refrescar todas las queries relacionadas con playlists
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      queryClient.refetchQueries({ queryKey: ['playlists'] });
+      
+      // Invalidar y refrescar la playlist específica
       queryClient.invalidateQueries({ queryKey: ['playlist', variables.playlistId] });
+      queryClient.refetchQueries({ queryKey: ['playlist', variables.playlistId] });
     },
   });
 };

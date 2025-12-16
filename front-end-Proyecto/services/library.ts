@@ -70,9 +70,9 @@ export class LibraryService {
   }
 
   /**
-   * Obtener una playlist por ID
+   * Obtener una playlist por ID (puede ser número o UUID)
    */
-  static async getPlaylistById(id: number): Promise<Playlist | null> {
+  static async getPlaylistById(id: number | string): Promise<Playlist | null> {
     try {
       const token = await getAuthToken();
       const headers = getAuthHeaders(token);
@@ -147,10 +147,10 @@ export class LibraryService {
   }
 
   /**
-   * Actualizar una playlist
+   * Actualizar una playlist (puede ser número o UUID)
    */
   static async updatePlaylist(
-    id: number,
+    id: number | string,
     data: {
       name?: string;
       description?: string;
@@ -185,9 +185,9 @@ export class LibraryService {
   }
 
   /**
-   * Eliminar una playlist
+   * Eliminar una playlist (puede ser número o UUID)
    */
-  static async deletePlaylist(id: number): Promise<boolean> {
+  static async deletePlaylist(id: number | string): Promise<boolean> {
     try {
       const token = await getAuthToken();
       const headers = getAuthHeaders(token);
@@ -246,9 +246,9 @@ export class LibraryService {
   }
 
   /**
-   * Quitar canción de una playlist
+   * Quitar canción de una playlist (playlistId puede ser número o UUID)
    */
-  static async removeSongFromPlaylist(playlistId: number, songId: number): Promise<boolean> {
+  static async removeSongFromPlaylist(playlistId: number | string, songId: number): Promise<boolean> {
     try {
       const token = await getAuthToken();
       const headers = getAuthHeaders(token);

@@ -28,7 +28,8 @@ const isMobile = width < 768;
 
 export default function PlaylistDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
-  const playlistId = params.id ? parseInt(params.id, 10) : null;
+  // El ID puede ser un número o un UUID (string), no hacer parseInt si es UUID
+  const playlistId = params.id || null;
   const [showMenu, setShowMenu] = useState(false);
 
   const { playlist, isLoading, refetch } = usePlaylist(playlistId);

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
@@ -14,89 +15,72 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { CatalogService } from '@/services/catalog';
+import { Song } from '@/models/song';
+import { Artist } from '@/models/artist';
+import { exampleSongs } from '@/data/exampleSongs';
+import { popularArtists as exampleArtists } from '@/data/artists';
 
 const { width, height } = Dimensions.get('window');
 const isMobile = width < 768; // Consideramos móvil si el ancho es menor a 768px
 
-// Datos de ejemplo para las canciones
-const featuredSongs = [
-  {
-    id: 1,
-    title: 'Titulo de la cancion 1',
-    artist: 'Cancion 1',
-    image: 'https://via.placeholder.com/200/FF6B35/FFFFFF?text=Pasajero',
-  },
-  {
-    id: 2,
-    title: 'Titulo de la cancion 2',
-    artist: 'Cancion 2',
-    image: 'https://via.placeholder.com/200/87CEEB/FFFFFF?text=La+Perla',
-  },
-  {
-    id: 3,
-    title: 'Titulo de la cancion 3',
-    artist: 'Cancion 3',
-    image: 'https://via.placeholder.com/200/FFB6C1/FFFFFF?text=Supersonic',
-  },
-  {
-    id: 4,
-    title: 'Titulo de la cancion 4',
-    artist: 'Cancion 4',
-    image: 'https://via.placeholder.com/200/FF69B4/FFFFFF?text=VLONE',
-  },
-  {
-    id: 5,
-    title: 'Titulo de la cancion 5',
-    artist: 'Cancion 5',
-    image: 'https://via.placeholder.com/200/FFA500/FFFFFF?text=Cantante',
-  },
-  {
-    id: 6,
-    title: 'Titulo de la cancion 6',
-    artist: 'Cancion 6',
-    image: 'https://via.placeholder.com/200/FF0000/FFFFFF?text=RAPIDO',
-  },
-];
-
-// Datos de ejemplo para artistas
-const popularArtists = [
-  {
-    id: 1,
-    name: 'Artista 1',
-    image: 'https://via.placeholder.com/200/333333/FFFFFF?text=Artist1',
-  },
-  {
-    id: 2,
-    name: 'Artista 2',
-    image: 'https://via.placeholder.com/200/444444/FFFFFF?text=Artist2',
-  },
-  {
-    id: 3,
-    name: 'Artista 3',
-    image: 'https://via.placeholder.com/200/555555/FFFFFF?text=Artist3',
-  },
-  {
-    id: 4,
-    name: 'Artista 4',
-    image: 'https://via.placeholder.com/200/666666/FFFFFF?text=Artist4',
-  },
-  {
-    id: 5,
-    name: 'Artista 5',
-    image: 'https://via.placeholder.com/200/777777/FFFFFF?text=Artist5',
-  },
-  {
-    id: 6,
-    name: 'Artista 6',
-    image: 'https://via.placeholder.com/200/888888/FFFFFF?text=Artist6',
-  },
-];
+// Datos de ejemplo como fallback
+const fallbackSongs = exampleSongs.filter(song => !song.isExample).slice(0, 6);
+const fallbackArtists = exampleArtists.slice(0, 6);
 
 export default function HomeScreen() {
   const { isAuthenticated, user } = useAuth();
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
-  const iconColor = useThemeColor({}, 'icon');
+
+  // Obtener canciones destacadas del API
+  const {
+    data: featuredSongsData = [],
+    isLoading: isLoadingSongs,
+  } = useQuery({
+    queryKey: ['featuredSongs'],
+    queryFn: CatalogService.getFeaturedSongs,
+    staleTime: 1000 * 60 * 10, // 10 minutos
+  });
+
+  // Obtener artistas populares del API
+  const {
+    data: popularArtistsData = [],
+    isLoading: isLoadingArtists,
+  } = useQuery({
+    queryKey: ['popularArtists'],
+    queryFn: CatalogService.getPopularArtists,
+    staleTime: 1000 * 60 * 10, // 10 minutos
+  });
+
+  // Adaptar canciones del API al formato esperado
+  const featuredSongs = featuredSongsData.length > 0
+    ? featuredSongsData.slice(0, 6).map((song: Song) => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        image: song.coverUrl || `https://i.ytimg.com/vi/${song.youtubeId}/hqdefault.jpg`,
+      }))
+    : fallbackSongs.map(song => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        image: song.coverUrl || `https://i.ytimg.com/vi/${song.youtubeId}/hqdefault.jpg`,
+      }));
+
+  // Adaptar artistas del API al formato esperado
+  const popularArtists = popularArtistsData.length > 0
+    ? popularArtistsData.slice(0, 6).map((artist: Artist, index: number) => ({
+        id: artist.id || index + 1,
+        name: artist.name,
+        image: artist.imageUrl || 'https://via.placeholder.com/200/333333/FFFFFF?text=' + encodeURIComponent(artist.name.substring(0, 1)),
+      }))
+    : fallbackArtists.map((artist, index) => ({
+        id: typeof artist.id === 'string' ? index + 1 : artist.id,
+        name: artist.name,
+        image: artist.imageUrl,
+      }));
 
   // Si el usuario está autenticado, redirigir a tabs
   useEffect(() => {
@@ -221,29 +205,36 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               style={styles.horizontalScroll}
             >
-              {featuredSongs.map((song) => (
-                <TouchableOpacity 
-                  key={song.id} 
-                  style={[styles.songCard, isMobile && styles.songCardMobile]}
-                  onPress={() => {
-                    // Navegar al reproductor
-                    router.push('/now-playing');
-                  }}
-                >
-                  <Image 
-                    source={{ uri: song.image }} 
-                    style={[styles.songImage, isMobile && styles.songImageMobile]}
-                    contentFit="cover"
-                    transition={200}
-                  />
-                  <ThemedText style={[styles.songTitle, isMobile && styles.songTitleMobile]} numberOfLines={1}>
-                    {song.title}
-                  </ThemedText>
-                  <ThemedText style={[styles.songArtist, isMobile && styles.songArtistMobile]} numberOfLines={1}>
-                    {song.artist}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
+              {isLoadingSongs ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#F22976" />
+                </View>
+              ) : (
+                featuredSongs.map((song) => (
+                  <TouchableOpacity 
+                    key={song.id} 
+                    style={[styles.songCard, isMobile && styles.songCardMobile]}
+                    onPress={() => {
+                      // Navegar al reproductor con el ID de la canción
+                      router.push(`/now-playing?songId=${song.id}`);
+                    }}
+                  >
+                    <Image 
+                      source={{ uri: song.image }} 
+                      style={[styles.songImage, isMobile && styles.songImageMobile]}
+                      contentFit="cover"
+                      transition={200}
+                      placeholder={{ blurhash: 'LKO2?U%2Tw=w]~RBVZRi};RPxuwH' }}
+                    />
+                    <ThemedText style={[styles.songTitle, isMobile && styles.songTitleMobile]} numberOfLines={1}>
+                      {song.title}
+                    </ThemedText>
+                    <ThemedText style={[styles.songArtist, isMobile && styles.songArtistMobile]} numberOfLines={1}>
+                      {song.artist}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))
+              )}
             </ScrollView>
           </View>
 
@@ -260,19 +251,33 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               style={styles.horizontalScroll}
             >
-              {popularArtists.map((artist) => (
-                <TouchableOpacity key={artist.id} style={[styles.artistCard, isMobile && styles.artistCardMobile]}>
-                  <Image 
-                    source={{ uri: artist.image }} 
-                    style={[styles.artistImage, isMobile && styles.artistImageMobile]}
-                    contentFit="cover"
-                    transition={200}
-                  />
-                  <ThemedText style={[styles.artistName, isMobile && styles.artistNameMobile]} numberOfLines={1}>
-                    {artist.name}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
+              {isLoadingArtists ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#F22976" />
+                </View>
+              ) : (
+                popularArtists.map((artist) => (
+                  <TouchableOpacity 
+                    key={artist.id} 
+                    style={[styles.artistCard, isMobile && styles.artistCardMobile]}
+                    onPress={() => {
+                      // Navegar a la página del artista
+                      router.push(`/artist/${artist.id}`);
+                    }}
+                  >
+                    <Image 
+                      source={{ uri: artist.image }} 
+                      style={[styles.artistImage, isMobile && styles.artistImageMobile]}
+                      contentFit="cover"
+                      transition={200}
+                      placeholder={{ blurhash: 'LKO2?U%2Tw=w]~RBVZRi};RPxuwH' }}
+                    />
+                    <ThemedText style={[styles.artistName, isMobile && styles.artistNameMobile]} numberOfLines={1}>
+                      {artist.name}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))
+              )}
             </ScrollView>
           </View>
         </ScrollView>
@@ -648,6 +653,13 @@ const styles = StyleSheet.create({
   bannerButtonTextMobile: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  loadingContainer: {
+    width: 180,
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
 });
 

@@ -1,7 +1,7 @@
 import { Song } from './song';
 
 export interface Playlist {
-  id: number;
+  id: number | string; // Puede ser número o UUID (string)
   name: string;
   description?: string;
   coverUrl?: string;

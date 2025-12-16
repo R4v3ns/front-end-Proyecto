@@ -166,12 +166,12 @@ export const ENDPOINTS = {
   LIBRARY: {
     // Biblioteca: Playlists y canciones guardadas
     PLAYLISTS: '/api/library/playlists',
-    PLAYLIST_BY_ID: (id: number) => `/api/library/playlists/${id}`,
+    PLAYLIST_BY_ID: (id: number | string) => `/api/library/playlists/${id}`,
     CREATE_PLAYLIST: '/api/library/playlists',
-    UPDATE_PLAYLIST: (id: number) => `/api/library/playlists/${id}`,
-    DELETE_PLAYLIST: (id: number) => `/api/library/playlists/${id}`,
+    UPDATE_PLAYLIST: (id: number | string) => `/api/library/playlists/${id}`,
+    DELETE_PLAYLIST: (id: number | string) => `/api/library/playlists/${id}`,
     ADD_SONG_TO_PLAYLIST: (id: number | string) => `/api/library/playlists/${id}/songs`,
-    REMOVE_SONG_FROM_PLAYLIST: (playlistId: number, songId: number) => 
+    REMOVE_SONG_FROM_PLAYLIST: (playlistId: number | string, songId: number) => 
       `/api/library/playlists/${playlistId}/songs/${songId}`,
     LIKED_SONGS: '/api/library/liked-songs',
     LIKE_SONG: (songId: number) => `/api/library/liked-songs/${songId}`,
